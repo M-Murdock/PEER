@@ -99,7 +99,7 @@ def main():
     obs, info = test_env.reset()
 
     print("🎯 Testing trained agent...")
-    for _ in range(500):
+    for _ in range(50000):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = test_env.step(action)
         test_env.render()

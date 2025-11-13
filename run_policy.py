@@ -5,7 +5,6 @@ import numpy as np
 import os
 from saved_goto_point import GoToPointWrapper
 
-
 # --- Create and wrap environment ---
 env = gym.make(
     "Ant-v5",
@@ -26,35 +25,41 @@ env = gym.make(
 
 env = GoToPointWrapper(env)
 
-# --- RL training setup ---
+# --- Load the model ---
 model_path = "ppo_ant_goto.zip"
 vec_env = make_vec_env(lambda: env, n_envs=1)
-
 print(f"🔁 Loading existing model from {model_path}...")
 model = PPO.load(model_path, env=vec_env)
-
 
 # --- Test the trained agent ---
 test_env = GoToPointWrapper(env)
 obs, info = test_env.reset()
 
-# print(env.action_space)
-sim_env = env.unwrapped
+# Access the internal simulation environment (MuJoCo)
+sim_env = test_env.unwrapped
 
-print("🎯 Testing trained agent...")
-for _ in range(500):
-    # current_pos = np.copy(vec_env.data.qpos[:2])
-    # print(current_pos)
-    # print(obs[:13])
-    current_pos = np.copy(sim_env.data.qpos)
-    print(current_pos)
-    print("---")
+# --- Set custom start state ---
+sim_env.data.qpos[:] = np.array([10.0, 2.0, 0.0, 0.5, 0.0, 0.0, 0.0, 11.0, 1.0])  # Set the joint positions
+# sim_env.data.qvel[:] = np.zeros_like(custom_qpos)  # Set the joint velocities
+# ----------------
+for _ in range(50000):
+    print(sim_env.data.qpos)
 
-    action, _ = model.predict(obs, deterministic=True)
-    obs, reward, terminated, truncated, info = test_env.step(action)
-    test_env.render()
-    if terminated or truncated:
-        obs, info = test_env.reset()
 
-test_env.close()
+
+# print("🎯 Testing trained agent...")
+# # Run the simulation and test the agent
+# for _ in range(500):
+#     # current_pos = np.copy(sim_env.data.qpos)
+#     # print(current_pos)
+#     # print("---")
+
+#     action, _ = model.predict(obs, deterministic=True)
+#     obs, reward, terminated, truncated, info = test_env.step(action)
+#     test_env.render()
+
+#     if terminated or truncated:
+#         obs, info = test_env.reset()
+
+# test_env.close()
 print("✅ Done!")

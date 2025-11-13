@@ -34,7 +34,6 @@ while not episode_over:
 print(f"Episode finished! Total reward: {total_reward}")
 env.close()
 
-import gymnasium as gym
 
 # Discrete action space (button presses)
 # env = gym.make("CartPole-v1")
