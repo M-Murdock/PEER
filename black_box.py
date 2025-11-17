@@ -4,11 +4,9 @@ import numpy as np
 from stable_baselines3 import PPO
 
 class BlackBox():
-    def __init__(self, start_pos=[0.5, 0.5], ):
+    def __init__(self, start_pos=[0.5, 0.5], env_id="Reacher-v5"):
         # --- Configuration ---
-        self.ENV_ID = "Pusher-v5"  # Updated to use the modern Reacher-v5 MuJoCo environment
-        self.TOTAL_TIMESTEPS = 100 # Number of steps to train the agent
-        self.LOG_DIR = "./reacher_ppo_logs_v5/" # Updated log directory
+        self.ENV_ID = env_id  # Updated to use the modern Reacher-v5 MuJoCo environment
         self.MODEL_PATH = "reacher_test.zip" # Updated model path
 
         # Custom start position for the two arm joints (qpos[0] and qpos[1]) in radians.
@@ -16,7 +14,7 @@ class BlackBox():
         # The Reacher-v5 state space is two joint angles.
         self.start_pos = start_pos
 
-    def run(self):
+    def run(self, render="human"):
         """
         Loads the saved model and runs a quick evaluation episode, 
         optionally setting a custom start joint position.
@@ -34,13 +32,12 @@ class BlackBox():
 
         # Create a single environment for rendering/testing
         # We use render_mode="human" for visualization
-        eval_env = gym.make(self.ENV_ID, render_mode="human")
+        eval_env = gym.make(self.ENV_ID, render_mode=render)
 
         # 1. Reset the environment (initializes the internal MuJoCo state)
         obs, info = eval_env.reset()
-         
+
         if self.start_pos is not None:
-            print("NOT NONE")
             # MuJoCo environments expose the raw environment via .unwrapped
             # This allows direct manipulation of the simulation data.
             sim_data = eval_env.unwrapped.data
@@ -52,7 +49,7 @@ class BlackBox():
                 sim_data.qpos[:len(self.start_pos)] = self.start_pos
                 
                 # Reset joint velocities (optional, but good practice)
-                # sim_data.qvel[:] = 0.0
+                sim_data.qvel[:] = 0.0
 
                 # Forward kinematics: Must be called after state manipulation to update
                 # all derived quantities (like link positions and contact forces).
@@ -88,7 +85,7 @@ class BlackBox():
         
         
         
-    def train(self):
+    def train(self, timesteps=1000):
         """
         Sets up the environment, trains a PPO agent, and saves the model.
         Training is still done with randomized starting positions for robustness.
@@ -102,21 +99,21 @@ class BlackBox():
         model = PPO("MlpPolicy", env, verbose=1)
 
         # Train
-        model.learn(total_timesteps=self.TOTAL_TIMESTEPS)
+        model.learn(total_timesteps=timesteps)
 
         # ----------------------------------------------------
         # SAVE THE TRAINED MODEL
         # ----------------------------------------------------
-        model.save(self.MODEL_PATH)      # saves ppo_reacher_model.zip
-        print("Model saved to ppo_reacher_model.zip")
+        model.save(self.MODEL_PATH)      # saves model
+        print(f"Model saved to {self.MODEL_PATH}")
 
-        # Optional: close env after training
+        # close env after training
         env.close()
         print(f"\nTraining finished. Model saved to {self.MODEL_PATH}")    
     
     
 if __name__ == "__main__":
-   black_box = BlackBox(start_pos=np.array([-3.14, -1]) )
-   black_box.train()
-   black_box.run()
+   black_box = BlackBox(start_pos=np.array([-3.14, -1]), env_id="Pusher-v5") # choose from any of these environments: https://gymnasium.farama.org/environments/mujoco/
+   black_box.train(timesteps=100)
+   black_box.run(render="human") # render options include: human, rgb_array, ansi (see https://gymnasium.farama.org/api/env/)
    
