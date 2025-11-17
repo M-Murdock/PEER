@@ -56,9 +56,6 @@ class GoToPointWrapper(gym.Wrapper):
 
 
 def main():
-
-# if __name__ == "__main__":
-#     main()
 # --- Create and wrap environment ---
     env = gym.make(
         "Ant-v5",
@@ -81,7 +78,7 @@ def main():
     env = GoToPointWrapper(env)
 
     # --- RL training setup ---
-    model_path = "ppo_reacher_goto.zip"
+    model_path = "ppo_ant_goto.zip"
     vec_env = make_vec_env(lambda: env, n_envs=1)
 
     if os.path.exists(model_path):
@@ -108,3 +105,6 @@ def main():
 
     test_env.close()
     print("✅ Done!")
+
+if __name__ == "__main__":
+    main()
