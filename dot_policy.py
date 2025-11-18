@@ -21,23 +21,13 @@ DOT_SPEED = 5 # This is now the agent's action magnitude
 
 # --- Target Square Definition ---
 # Define the corners of the square path
-# --- Top Left ---
-TOP_LEFT_X = 14
-TOP_LEFT_Y = 12
-Q_TABLE_FILE = "q_table_topleft.npy"
-# --- Top Right ---
-# TOP_LEFT_X = 559
-# TOP_LEFT_Y = 12
-# Q_TABLE_FILE = "q_table_topright.npy"
-# --- Bottom Right ---
-# TOP_LEFT_X = 559
-# TOP_LEFT_Y = 559
-# Q_TABLE_FILE = "q_table_bottomright.npy"
-# --- Bottom Left ---
-# TOP_LEFT_X = 12
-# TOP_LEFT_Y = 559
-# Q_TABLE_FILE = "q_table_bottomleft.npy"
-
+SQUARE_MARGIN = 250
+SQUARE_CORNERS = [
+    (SQUARE_MARGIN, SQUARE_MARGIN),                            # Top-left
+    (SCREEN_WIDTH - SQUARE_MARGIN, SQUARE_MARGIN),             # Top-right
+    (SCREEN_WIDTH - SQUARE_MARGIN, SCREEN_HEIGHT - SQUARE_MARGIN), # Bottom-right
+    (SQUARE_MARGIN, SCREEN_HEIGHT - SQUARE_MARGIN)               # Bottom-left
+]
 
 # --- Q-Learning Parameters ---
 # Discretize the state space
@@ -46,8 +36,8 @@ STATES_X = SCREEN_WIDTH // GRID_SIZE   # 30 states
 STATES_Y = SCREEN_HEIGHT // GRID_SIZE  # 30 states
 
 # --- NEW: Mode and File Constants ---
-MODE = "run"  # Change to "run" to execute the learned policy
-# Q_TABLE_FILE = "q_table_topright.npy"
+MODE = "train"  # Change to "run" to execute the learned policy
+Q_TABLE_FILE = "q_table.npy"
 
 
 # --- Helper Functions ---
@@ -58,15 +48,33 @@ def get_state(x, y):
     state_y = int(max(0, min(y, SCREEN_HEIGHT - 1)) // GRID_SIZE)
     return (state_x, state_y)
 
+def dist_point_to_segment(p, v, w):
+    """Calculates the minimum distance from point p to line segment vw."""
+    p = np.array(p)
+    v = np.array(v)
+    w = np.array(w)
+    l2 = np.dot(w - v, w - v) # Length squared of the segment
+    if l2 == 0:
+        return np.linalg.norm(p - v) # v and w are the same point
+    # Project p onto the line containing the segment
+    t = max(0, min(1, np.dot(p - v, w - v) / l2))
+    projection = v + t * (w - v)
+    return np.linalg.norm(p - projection)
+
 def get_reward(x, y):
-    """Calculates the reward based on distance to the point."""
+    """Calculates the reward based on distance to the square."""
+    min_dist = float('inf')
     p = (x, y)
     # Find distance to the closest of the 4 line segments
-    return -1 * np.linalg.norm(p-np.array((TOP_LEFT_X,TOP_LEFT_Y)))
-
+    for i in range(4):
+        v = SQUARE_CORNERS[i]
+        w = SQUARE_CORNERS[(i + 1) % 4] # Wrap around to the start
+        dist = dist_point_to_segment(p, v, w)
+        min_dist = min(min_dist, dist)
+    
     # Reward is the negative distance.
     # We want to *minimize* distance, which means *maximizing* this reward.
-
+    return -min_dist
 
 def choose_action(state, epsilon, q_table):
     """Epsilon-greedy action selection."""
@@ -100,8 +108,8 @@ def main():
         MIN_EPSILON = 0.01
 
         # Training parameters
-        NUM_EPISODES = 8000
-        STEPS_PER_EPISODE = 100
+        NUM_EPISODES = 10000
+        STEPS_PER_EPISODE = 3000
 
         # --- Main Training Loop ---
         for episode in range(NUM_EPISODES):
@@ -158,7 +166,7 @@ def main():
                     screen.fill(BLACK)
                     
                     # Draw the target square
-                    pygame.draw.circle(screen, GREEN, (TOP_LEFT_X, TOP_LEFT_Y), DOT_RADIUS)
+                    pygame.draw.lines(screen, GREEN, True, SQUARE_CORNERS, 2)
                     
                     # Draw the agent's dot
                     pygame.draw.circle(screen, RED, (int(dot_x), int(dot_y)), DOT_RADIUS)
@@ -228,7 +236,7 @@ def main():
 
             # --- Drawing (every frame) ---
             screen.fill(BLACK)
-            pygame.draw.circle(screen, GREEN, (TOP_LEFT_X, TOP_LEFT_Y), DOT_RADIUS)
+            pygame.draw.lines(screen, GREEN, True, SQUARE_CORNERS, 2)
             pygame.draw.circle(screen, RED, (int(dot_x), int(dot_y)), DOT_RADIUS)
             
             # --- Update Display ---
