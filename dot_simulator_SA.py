@@ -174,9 +174,9 @@ class Dot_Simulator:
             self.clock.tick(60)
             
     def run_shared(self):
-        # pass
+
         pred = MaxEntPredictor(self.POLICIES)
-        # policy = SharedAutoPolicy(policies, list(range(len(action_space))))
+
         policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
         
         
@@ -207,13 +207,23 @@ class Dot_Simulator:
             # prob = pred.get_prob_after_obs(self.get_state(), u)
             prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob)# Get robot's predicted action
-            blended_action = 1 # PLACEHOLDER
+            blended_action = (u + optimal_action) / 2 # PLACEHOLDER
             print(f"Prob:{prob}, Optimal Action:{optimal_action}")
             # ---------
             q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
             best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
 
             print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
+            
+            if blended_action == 0:
+                self.dot_y -= self.DOT_SPEED
+            elif blended_action == 1:
+                self.dot_y += self.DOT_SPEED
+            elif blended_action == 2:
+                self.dot_x -= self.DOT_SPEED
+            elif blended_action == 3:
+                self.dot_x += self.DOT_SPEED
+
             # ---------
             # --- Game Logic ---
             # Boundary check to keep the dot on the screen
