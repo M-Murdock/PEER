@@ -60,7 +60,7 @@ class Dot_Simulator:
         # Clock for controlling the frame rate 
         self.clock = pygame.time.Clock()
         
-        self.POLICIES = [Dot_Policy("q_table_topleft.npy"), Dot_Policy("q_table_bottomleft.npy"), Dot_Policy("q_table_topright.npy"), Dot_Policy("q_table_bottomright.npy")]
+        self.POLICIES = [Dot_Policy("trained_policies/q_table_topleft.npy"), Dot_Policy("trained_policies/q_table_bottomleft.npy"), Dot_Policy("trained_policies/q_table_topright.npy"), Dot_Policy("trained_policies/q_table_bottomright.npy")]
 
 
     def get_state(self, x, y):
