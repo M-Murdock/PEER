@@ -2,8 +2,8 @@
 import pygame
 import sys
 import numpy as np
-# from shared_auto import SharedAutoPolicy
-# from maxent_pred import MaxEntPredictor
+from shared_auto import SharedAutoPolicy
+from maxent_pred import MaxEntPredictor
 
 class Dot_Policy:
     def __init__(self, q_table_file="q_table_topleft.npy"):
@@ -17,8 +17,9 @@ class Dot_Policy:
     
     def get_q_value(self, state, action): 
         # return q value for a given action
+        print(self.q_table[state[0], state[1], action])
+
         return self.q_table[state[0], state[1], action]
-    
 
     # def get_action_indices(self, dimension, value):
     #     indices = []
@@ -59,8 +60,9 @@ class Dot_Simulator:
         self.dot_x = self.SCREEN_WIDTH // 2
         self.dot_y = self.SCREEN_HEIGHT // 2
 
-        self.ACTIONS = [(), 1, 2, 3] # up, down, left, right
-   
+        # self.ACTIONS = [(), 1, 2, 3] # up, down, left, right
+        self.ACTION_SPACE_LEN = 4
+
         # --- Initialization ---
         # Initialize all imported pygame modules
         pygame.init()
@@ -69,6 +71,8 @@ class Dot_Simulator:
         pygame.display.set_caption("Dot Mover Simulation")
         # Clock for controlling the frame rate (though not strictly needed for this event-based movement)
         self.clock = pygame.time.Clock()
+        
+        self.POLICIES = [Dot_Policy(self.Q_TABLE_FILE)]
 
 
     def get_state(self, x, y):
@@ -88,7 +92,7 @@ class Dot_Simulator:
     def run_auton(self):
         print("--- Mode: RUNNING POLICY ---")
 
-        test_policy = Dot_Policy(self.Q_TABLE_FILE)
+        test_policy = self.POLICIES[0]
         running = True
         while running:
             # --- Event Handling (to allow quitting) ---
@@ -170,16 +174,72 @@ class Dot_Simulator:
             self.clock.tick(60)
             
     def run_shared(self):
-        pass
-        # pred = MaxEntPredictor(policies)
+        # pass
+        pred = MaxEntPredictor(self.POLICIES)
         # policy = SharedAutoPolicy(policies, list(range(len(action_space))))
+        policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
+        
+        
+        u = -1
+        running = True
+        while running:
+            # --- Event Handling ---
+            # Check for all user events in the queue
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    # If the user clicks the window's close button
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    # If a key is pressed
+                    if event.key == pygame.K_UP:
+                        self.dot_y -= self.DOT_SPEED
+                        u = 0
+                    elif event.key == pygame.K_DOWN:
+                        self.dot_y += self.DOT_SPEED
+                        u = 1
+                    elif event.key == pygame.K_LEFT:
+                        self.dot_x -= self.DOT_SPEED
+                        u = 2
+                    elif event.key == pygame.K_RIGHT:
+                        self.dot_x += self.DOT_SPEED
+                        u = 3
+                        
+            # prob = pred.get_prob_after_obs(self.get_state(), u)
+            prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
+            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob)# Get robot's predicted action
+            blended_action = 1 # PLACEHOLDER
+            print(f"Prob:{prob}, Optimal Action:{optimal_action}")
+            
+            # q_all = [policy.get_q_value(state, u_h_index) for policy in policies]
+            # best_actions = [action_space[policy.get_action(state)] for policy in policies]
 
+            # print(f"{state} -> {u_h} -> {best_actions} -> {q_all} -> {prob} -> {action_space[u_r_index]}") # For debugging
+            
+            # --- Game Logic ---
+            # Boundary check to keep the dot on the screen
+            # 4. Boundary check
+            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
+            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
+            # --- Drawing ---
+            # Fill the entire screen with black
+            self.screen.fill(self.BLACK)
+
+            # Draw the white dot on the screen
+            # pygame.draw.circle(surface, color, center_pos, radius)
+            pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
+
+            # --- Update Display ---
+            # Flip the display to show the new frame
+            pygame.display.flip()
+
+            # (Optional) Cap the frame rate
+            self.clock.tick(60)
 
 
 print("running")
-# print(run())   
-# run_auton() 
+
 dot = Dot_Simulator()
 # dot.run_teleop()
-dot.run_auton()
+# dot.run_auton()
+dot.run_shared()
 
