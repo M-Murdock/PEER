@@ -16,17 +16,7 @@ class Dot_Policy:
             print(f"Error: Q-table file '{self.q_table_file}' not found.")
     
     def get_q_value(self, state, action): 
-        # return q value for a given action
-        # print(self.q_table[state[0], state[1], action])
-
         return self.q_table[state[0], state[1], action]
-
-    # def get_action_indices(self, dimension, value):
-    #     indices = []
-    #     for action_index in range(0, len(self.actions)):
-    #         if self.actions[action_index][dimension] == value:
-    #             indices.append(action_index)
-    #     return indices
 
     def get_action(self, state):
         return np.argmax(self.q_table[state[0], state[1], :])
@@ -49,9 +39,6 @@ class Dot_Simulator:
         self.DOT_SPEED = 5 # This is now the agent's action magnitude
 
         # --- Top Left ---
-        # self.TOP_LEFT_X = 14
-        # self.TOP_LEFT_Y = 12
-        # self.Q_TABLE_FILE = "q_table_topleft.npy"
         # Discretize the state space
         self.GRID_SIZE = 20 # 20x20 pixel cells
         self.STATES_X = self.SCREEN_WIDTH // self.GRID_SIZE   # 30 states
@@ -60,8 +47,9 @@ class Dot_Simulator:
         self.dot_x = self.SCREEN_WIDTH // 2
         self.dot_y = self.SCREEN_HEIGHT // 2
 
-        # self.ACTIONS = [(), 1, 2, 3] # up, down, left, right
+        # up, down, left, right
         self.ACTION_SPACE_LEN = 4
+        # len(self.q_table[state[0], state[1], :])
 
         # --- Initialization ---
         # Initialize all imported pygame modules
@@ -81,13 +69,6 @@ class Dot_Simulator:
         state_y = int(max(0, min(y, self.SCREEN_HEIGHT - 1)) // self.GRID_SIZE)
         return (state_x, state_y)
 
-    def choose_action(self, state, epsilon, q_table):
-        """Epsilon-greedy action selection."""
-        if np.random.rand() < epsilon:
-            return np.random.randint(4) # Explore: random action
-        else:
-            # Exploit: choose best action from Q-table
-            return np.argmax(q_table[state[0], state[1], :])
         
     def index_to_tuple(self, index):
         if index == 0:
@@ -202,21 +183,7 @@ class Dot_Simulator:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                pass # The movement logic is moved outside the event loop
-    
-            # keys = pygame.key.get_pressed()
-            # if keys[pygame.K_UP]:
-            #     self.dot_y -= self.DOT_SPEED
-            #     u = 0 # Update 'u' if necessary
-            # if keys[pygame.K_DOWN]:
-            #     self.dot_y += self.DOT_SPEED
-            #     u = 1
-            # if keys[pygame.K_LEFT]:
-            #     self.dot_x -= self.DOT_SPEED
-            #     u = 2
-            # if keys[pygame.K_RIGHT]:
-            #     self.dot_x += self.DOT_SPEED
-            #     u = 3
+
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
                 u = 0 # Update 'u' if necessary
@@ -243,8 +210,8 @@ class Dot_Simulator:
             print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
             # for debugging, print everything out
-            q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
-            best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
+            # q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
+            # best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
             # print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
             
             # using the optimal action and control signal, blend them together
@@ -253,11 +220,10 @@ class Dot_Simulator:
                 print("EXECUTING ACTION")
                     
             else: 
-                # blended_action = ( self.index_to_tuple(u) + self.index_to_tuple(optimal_action) ) // 2
                 blended_action = [(x + y) / 2 for x, y in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
                 self.execute_action(blended_action)
 
-            # ---------
+
             # --- Game Logic ---
             # Boundary check to keep the dot on the screen
             # 4. Boundary check
