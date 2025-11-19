@@ -4,6 +4,8 @@ import sys
 import numpy as np
 from util.shared_auto import SharedAutoPolicy
 from util.maxent_pred import MaxEntPredictor
+from os import listdir
+from os.path import isfile, join
 
 class Dot_Policy:
     def __init__(self, q_table_file="q_table_topleft.npy"):
@@ -22,7 +24,7 @@ class Dot_Policy:
         return np.argmax(self.q_table[state[0], state[1], :])
 
 class Dot_Simulator:
-    def __init__(self):
+    def __init__(self, policy_dir="trained_policies"):
             # --- Constants ---
         # Screen dimensions
         self.SCREEN_WIDTH = 600
@@ -60,8 +62,9 @@ class Dot_Simulator:
         # Clock for controlling the frame rate 
         self.clock = pygame.time.Clock()
         
-        self.POLICIES = [Dot_Policy("trained_policies/q_table_topleft.npy"), Dot_Policy("trained_policies/q_table_bottomleft.npy"), Dot_Policy("trained_policies/q_table_topright.npy"), Dot_Policy("trained_policies/q_table_bottomright.npy")]
-
+        # Get all the policies from the given directory
+        self.POLICY_DIR = policy_dir
+        self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]]
 
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
@@ -206,7 +209,7 @@ class Dot_Simulator:
                 
             # using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
-            print(f"Prob:{prob}, Optimal Action:{optimal_action}")
+            # print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
