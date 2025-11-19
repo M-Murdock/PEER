@@ -28,10 +28,10 @@ class Dot_Simulator:
         self.SCREEN_WIDTH = 600
         self.SCREEN_HEIGHT = 600
 
-        # Colors (R, G, B)
+        # Colors 
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
-        self.GREEN = (0, 255, 0) # For the target square
+        # self.GREEN = (0, 255, 0) # For the target square
         self.RED = (255, 0, 0) # For the dot (to see it better)
 
         # Dot properties
@@ -57,7 +57,7 @@ class Dot_Simulator:
         # Set up the display window
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         pygame.display.set_caption("Dot Mover Simulation")
-        # Clock for controlling the frame rate (though not strictly needed for this event-based movement)
+        # Clock for controlling the frame rate 
         self.clock = pygame.time.Clock()
         
         self.POLICIES = [Dot_Policy("q_table_topleft.npy"), Dot_Policy("q_table_bottomleft.npy"), Dot_Policy("q_table_topright.npy"), Dot_Policy("q_table_bottomright.npy")]
@@ -88,7 +88,21 @@ class Dot_Simulator:
             
         self.dot_x += self.DOT_SPEED * action[0] # execute the action
         self.dot_y += self.DOT_SPEED * action[1]
-        
+    
+    def ensure_within_boundaries(self):
+        self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
+        self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
+            
+    def redraw_screen(self):
+        # Fill the entire screen with black
+        self.screen.fill(self.BLACK)
+        # Draw the white dot on the screen
+        pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
+        # Flip the display to show the new frame
+        pygame.display.flip()
+        # Cap the frame rate
+        self.clock.tick(60)
+            
     def run_auton(self):
         print("--- Mode: RUNNING POLICY ---")
 
@@ -117,18 +131,10 @@ class Dot_Simulator:
             elif action == 3: # Right
                 self.dot_x += self.DOT_SPEED
 
-            # 4. Boundary check
-            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
-            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
-
-            # --- Drawing (every frame) ---
-            self.screen.fill(self.BLACK)
-            # pygame.draw.circle(self.screen, self.GREEN, (self.TOP_LEFT_X, self.TOP_LEFT_Y), self.DOT_RADIUS)
-            pygame.draw.circle(self.screen, self.RED, (int(self.dot_x), int(self.dot_y)), self.DOT_RADIUS)
-            
-            # --- Update Display ---
-            pygame.display.flip()
-            self.clock.tick(60) # Run at a viewable speed
+            # Boundary check to keep the dot on the screen
+            self.ensure_within_boundaries()
+            # Redraw the dot in its new position
+            self.redraw_screen()
 
         pygame.quit()
         sys.exit()
@@ -153,25 +159,11 @@ class Dot_Simulator:
                         self.dot_x -= self.DOT_SPEED
                     elif event.key == pygame.K_RIGHT:
                         self.dot_x += self.DOT_SPEED
-            # --- Game Logic ---
+            
             # Boundary check to keep the dot on the screen
-            # 4. Boundary check
-            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
-            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
-            # --- Drawing ---
-            # Fill the entire screen with black
-            self.screen.fill(self.BLACK)
-
-            # Draw the white dot on the screen
-            # pygame.draw.circle(surface, color, center_pos, radius)
-            pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
-
-            # --- Update Display ---
-            # Flip the display to show the new frame
-            pygame.display.flip()
-
-            # (Optional) Cap the frame rate
-            self.clock.tick(60)
+            self.ensure_within_boundaries()
+            # Redraw the dot in its new position
+            self.redraw_screen()
             
     def run_shared(self):
 
@@ -189,7 +181,7 @@ class Dot_Simulator:
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
-                u = 0 # Update 'u' if necessary
+                u = 0 
                 self.execute_action(u)
             if keys[pygame.K_DOWN]:
                 u = 1
@@ -201,7 +193,11 @@ class Dot_Simulator:
                 u = 3
                 self.execute_action(u)
                 
-                        
+            # don't move the dot until AFTER the user has given their first control signal
+            if u == -1:
+                self.redraw_screen()
+                continue
+            
             # get the probability of the policies based on the user's control signal
             if sum(keys) == 0: # no key is being pressed:
                 prob = pred.get_prob()
@@ -212,40 +208,20 @@ class Dot_Simulator:
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
             print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
-            # for debugging, print everything out
-            # q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
-            # best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
-            # print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
-            
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
                 self.execute_action(u)
-                print("EXECUTING ACTION")
                     
             else: 
                 blended_action = [(x + y) / 2 for x, y in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
                 self.execute_action(blended_action, is_tuple=True)
 
-
-            # --- Game Logic ---
             # Boundary check to keep the dot on the screen
-            # 4. Boundary check
-            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
-            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
-            # --- Drawing ---
-            # Fill the entire screen with black
-            self.screen.fill(self.BLACK)
-
-            # Draw the white dot on the screen
-            # pygame.draw.circle(surface, color, center_pos, radius)
-            pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
-
-            # --- Update Display ---
-            # Flip the display to show the new frame
-            pygame.display.flip()
-
-            # (Optional) Cap the frame rate
-            self.clock.tick(60)
+            self.ensure_within_boundaries()
+            # Redraw the dot in its new position
+            self.redraw_screen()
+            
+            
 
 
 dot = Dot_Simulator()
