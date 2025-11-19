@@ -88,7 +88,23 @@ class Dot_Simulator:
         else:
             # Exploit: choose best action from Q-table
             return np.argmax(q_table[state[0], state[1], :])
+        
+    def index_to_tuple(self, index):
+        if index == 0:
+            return (0, -1)
+        elif index == 1:
+            return (0, 1)
+        elif index == 2:
+            return (-1, 0)
+        elif index == 3:
+            return (1, 0)
+        
+        return (0, 0)
     
+    def execute_action(self, action): # note: action must be in form: (0, 0)
+        self.dot_x += self.DOT_SPEED * action[0]
+        self.dot_y += self.DOT_SPEED * action[1]
+        
     def run_auton(self):
         print("--- Mode: RUNNING POLICY ---")
 
@@ -176,9 +192,7 @@ class Dot_Simulator:
     def run_shared(self):
 
         pred = MaxEntPredictor(self.POLICIES)
-
         policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
-        
         
         u = -1
         running = True
@@ -190,39 +204,58 @@ class Dot_Simulator:
                     running = False
                 pass # The movement logic is moved outside the event loop
     
+            # keys = pygame.key.get_pressed()
+            # if keys[pygame.K_UP]:
+            #     self.dot_y -= self.DOT_SPEED
+            #     u = 0 # Update 'u' if necessary
+            # if keys[pygame.K_DOWN]:
+            #     self.dot_y += self.DOT_SPEED
+            #     u = 1
+            # if keys[pygame.K_LEFT]:
+            #     self.dot_x -= self.DOT_SPEED
+            #     u = 2
+            # if keys[pygame.K_RIGHT]:
+            #     self.dot_x += self.DOT_SPEED
+            #     u = 3
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
-                self.dot_y -= self.DOT_SPEED
                 u = 0 # Update 'u' if necessary
+                self.execute_action(self.index_to_tuple(u))
             if keys[pygame.K_DOWN]:
-                self.dot_y += self.DOT_SPEED
                 u = 1
+                self.execute_action(self.index_to_tuple(u))
             if keys[pygame.K_LEFT]:
-                self.dot_x -= self.DOT_SPEED
                 u = 2
+                self.execute_action(self.index_to_tuple(u))
             if keys[pygame.K_RIGHT]:
-                self.dot_x += self.DOT_SPEED
                 u = 3
+                self.execute_action(self.index_to_tuple(u))
+                
                         
-            # prob = pred.get_prob_after_obs(self.get_state(), u)
-            prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
-            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob)# Get robot's predicted action
-            blended_action = (u + optimal_action) / 2 # PLACEHOLDER
+            # get the probability of the policies based on the user's control signal
+            if sum(keys) == 0: # no key is being pressed:
+                prob = pred.get_prob()
+            else:
+                prob = pred.get_prob_after_obs(self.get_state(self.dot_x, self.dot_y), u)
+                
+            # using the most likely policy, calculate the next optimal action
+            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
             print(f"Prob:{prob}, Optimal Action:{optimal_action}")
-            # ---------
+
+            # for debugging, print everything out
             q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
             best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
-
-            print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
+            # print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
             
-            if blended_action == 0:
-                self.dot_y -= self.DOT_SPEED
-            elif blended_action == 1:
-                self.dot_y += self.DOT_SPEED
-            elif blended_action == 2:
-                self.dot_x -= self.DOT_SPEED
-            elif blended_action == 3:
-                self.dot_x += self.DOT_SPEED
+            # using the optimal action and control signal, blend them together
+            if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
+                self.execute_action(self.index_to_tuple(u))
+                print("EXECUTING ACTION")
+                    
+            else: 
+                # blended_action = ( self.index_to_tuple(u) + self.index_to_tuple(optimal_action) ) // 2
+                blended_action = [(x + y) / 2 for x, y in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
+                self.execute_action(blended_action)
 
             # ---------
             # --- Game Logic ---
@@ -245,8 +278,6 @@ class Dot_Simulator:
             # (Optional) Cap the frame rate
             self.clock.tick(60)
 
-
-print("running")
 
 dot = Dot_Simulator()
 # dot.run_teleop()
