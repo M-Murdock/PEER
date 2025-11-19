@@ -49,9 +49,9 @@ class Dot_Simulator:
         self.DOT_SPEED = 5 # This is now the agent's action magnitude
 
         # --- Top Left ---
-        self.TOP_LEFT_X = 14
-        self.TOP_LEFT_Y = 12
-        self.Q_TABLE_FILE = "q_table_topleft.npy"
+        # self.TOP_LEFT_X = 14
+        # self.TOP_LEFT_Y = 12
+        # self.Q_TABLE_FILE = "q_table_topleft.npy"
         # Discretize the state space
         self.GRID_SIZE = 20 # 20x20 pixel cells
         self.STATES_X = self.SCREEN_WIDTH // self.GRID_SIZE   # 30 states
@@ -72,7 +72,7 @@ class Dot_Simulator:
         # Clock for controlling the frame rate (though not strictly needed for this event-based movement)
         self.clock = pygame.time.Clock()
         
-        self.POLICIES = [Dot_Policy(self.Q_TABLE_FILE)]
+        self.POLICIES = [Dot_Policy("q_table_topleft.npy"), Dot_Policy("q_table_bottomleft.npy"), Dot_Policy("q_table_topright.npy"), Dot_Policy("q_table_bottomright.npy")]
 
 
     def get_state(self, x, y):
@@ -123,7 +123,7 @@ class Dot_Simulator:
 
             # --- Drawing (every frame) ---
             self.screen.fill(self.BLACK)
-            pygame.draw.circle(self.screen, self.GREEN, (self.TOP_LEFT_X, self.TOP_LEFT_Y), self.DOT_RADIUS)
+            # pygame.draw.circle(self.screen, self.GREEN, (self.TOP_LEFT_X, self.TOP_LEFT_Y), self.DOT_RADIUS)
             pygame.draw.circle(self.screen, self.RED, (int(self.dot_x), int(self.dot_y)), self.DOT_RADIUS)
             
             # --- Update Display ---
@@ -209,12 +209,12 @@ class Dot_Simulator:
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob)# Get robot's predicted action
             blended_action = 1 # PLACEHOLDER
             print(f"Prob:{prob}, Optimal Action:{optimal_action}")
-            
-            # q_all = [policy.get_q_value(state, u_h_index) for policy in policies]
-            # best_actions = [action_space[policy.get_action(state)] for policy in policies]
+            # ---------
+            q_all = [policy.get_q_value(self.get_state(self.dot_x, self.dot_y), optimal_action) for policy in self.POLICIES]
+            best_actions = [policy.get_action(self.get_state(self.dot_x, self.dot_y)) for policy in self.POLICIES]
 
-            # print(f"{state} -> {u_h} -> {best_actions} -> {q_all} -> {prob} -> {action_space[u_r_index]}") # For debugging
-            
+            print(f"{self.get_state(self.dot_x, self.dot_y)} -> {u} -> {best_actions} -> {q_all} -> {prob} -> {optimal_action}") # For debugging
+            # ---------
             # --- Game Logic ---
             # Boundary check to keep the dot on the screen
             # 4. Boundary check
