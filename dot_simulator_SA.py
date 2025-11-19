@@ -2,8 +2,8 @@
 import pygame
 import sys
 import numpy as np
-from shared_auto import SharedAutoPolicy
-from maxent_pred import MaxEntPredictor
+from util.shared_auto import SharedAutoPolicy
+from util.maxent_pred import MaxEntPredictor
 
 class Dot_Policy:
     def __init__(self, q_table_file="q_table_topleft.npy"):
