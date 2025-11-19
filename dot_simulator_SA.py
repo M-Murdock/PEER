@@ -2,7 +2,33 @@
 import pygame
 import sys
 import numpy as np
+# from shared_auto import SharedAutoPolicy
+# from maxent_pred import MaxEntPredictor
 
+class Dot_Policy:
+    def __init__(self, q_table_file="q_table_topleft.npy"):
+        self.q_table_file = q_table_file
+        # --- Load Q-Table ---
+        try:
+            self.q_table = np.load(self.q_table_file)
+            print(f"Loaded Q-table from {self.q_table_file}")
+        except FileNotFoundError:
+            print(f"Error: Q-table file '{self.q_table_file}' not found.")
+    
+    def get_q_value(self, state, action): 
+        # return q value for a given action
+        return self.q_table[state[0], state[1], action]
+    
+
+    # def get_action_indices(self, dimension, value):
+    #     indices = []
+    #     for action_index in range(0, len(self.actions)):
+    #         if self.actions[action_index][dimension] == value:
+    #             indices.append(action_index)
+    #     return indices
+
+    def get_action(self, state):
+        return np.argmax(self.q_table[state[0], state[1], :])
 
 class Dot_Simulator:
     def __init__(self):
@@ -29,7 +55,12 @@ class Dot_Simulator:
         self.GRID_SIZE = 20 # 20x20 pixel cells
         self.STATES_X = self.SCREEN_WIDTH // self.GRID_SIZE   # 30 states
         self.STATES_Y = self.SCREEN_HEIGHT // self.GRID_SIZE  # 30 states
+        
+        self.dot_x = self.SCREEN_WIDTH // 2
+        self.dot_y = self.SCREEN_HEIGHT // 2
 
+        self.ACTIONS = [(), 1, 2, 3] # up, down, left, right
+   
         # --- Initialization ---
         # Initialize all imported pygame modules
         pygame.init()
@@ -38,9 +69,6 @@ class Dot_Simulator:
         pygame.display.set_caption("Dot Mover Simulation")
         # Clock for controlling the frame rate (though not strictly needed for this event-based movement)
         self.clock = pygame.time.Clock()
-
-
-
 
 
     def get_state(self, x, y):
@@ -60,20 +88,7 @@ class Dot_Simulator:
     def run_auton(self):
         print("--- Mode: RUNNING POLICY ---")
 
-        # --- Load Q-Table ---
-        try:
-            q_table = np.load(self.Q_TABLE_FILE)
-            print(f"Loaded Q-table from {self.Q_TABLE_FILE}")
-        except FileNotFoundError:
-            print(f"Error: Q-table file '{self.Q_TABLE_FILE}' not found.")
-            print("Please run the script in 'train' mode first.")
-            pygame.quit()
-            sys.exit()
-
-        # --- Run Policy Loop ---
-        dot_x = self.SCREEN_WIDTH // 2
-        dot_y = self.SCREEN_HEIGHT // 2
-
+        test_policy = Dot_Policy(self.Q_TABLE_FILE)
         running = True
         while running:
             # --- Event Handling (to allow quitting) ---
@@ -83,31 +98,29 @@ class Dot_Simulator:
 
             # --- Agent Logic (Exploitation only) ---
             # 1. Get current state
-            current_state = self.get_state(dot_x, dot_y)
+            current_state = self.get_state(self.dot_x, self.dot_y)
             
             # 2. Choose action (epsilon=0 for pure exploitation)
-            action = self.choose_action(current_state, 0, q_table)
+            action = test_policy.get_action(current_state)
             
             # 3. Take action (move the dot)
             if action == 0: # Up
-                dot_y -= self.DOT_SPEED
+                self.dot_y -= self.DOT_SPEED
             elif action == 1: # Down
-                dot_y += self.DOT_SPEED
+                self.dot_y += self.DOT_SPEED
             elif action == 2: # Left
-                dot_x -= self.DOT_SPEED
+                self.dot_x -= self.DOT_SPEED
             elif action == 3: # Right
-                dot_x += self.DOT_SPEED
+                self.dot_x += self.DOT_SPEED
 
             # 4. Boundary check
-            dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, dot_x))
-            dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, dot_y))
-
-            # 5. NO reward or Q-table update in 'run' mode
+            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
+            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
 
             # --- Drawing (every frame) ---
             self.screen.fill(self.BLACK)
             pygame.draw.circle(self.screen, self.GREEN, (self.TOP_LEFT_X, self.TOP_LEFT_Y), self.DOT_RADIUS)
-            pygame.draw.circle(self.screen, self.RED, (int(dot_x), int(dot_y)), self.DOT_RADIUS)
+            pygame.draw.circle(self.screen, self.RED, (int(self.dot_x), int(self.dot_y)), self.DOT_RADIUS)
             
             # --- Update Display ---
             pygame.display.flip()
@@ -117,8 +130,6 @@ class Dot_Simulator:
         sys.exit()
 
     def run_teleop(self):
-        dot_x = self.SCREEN_WIDTH // 2
-        dot_y = self.SCREEN_HEIGHT // 2
         # --- Main Game Loop ---
         running = True
         while running:
@@ -131,23 +142,25 @@ class Dot_Simulator:
                 elif event.type == pygame.KEYDOWN:
                     # If a key is pressed
                     if event.key == pygame.K_UP:
-                        dot_y -= self.DOT_SPEED
+                        self.dot_y -= self.DOT_SPEED
                     elif event.key == pygame.K_DOWN:
-                        dot_y += self.DOT_SPEED
+                        self.dot_y += self.DOT_SPEED
                     elif event.key == pygame.K_LEFT:
-                        dot_x -= self.DOT_SPEED
+                        self.dot_x -= self.DOT_SPEED
                     elif event.key == pygame.K_RIGHT:
-                        dot_x += self.DOT_SPEED
+                        self.dot_x += self.DOT_SPEED
             # --- Game Logic ---
             # Boundary check to keep the dot on the screen
-
+            # 4. Boundary check
+            self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
+            self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
             # --- Drawing ---
             # Fill the entire screen with black
             self.screen.fill(self.BLACK)
 
             # Draw the white dot on the screen
             # pygame.draw.circle(surface, color, center_pos, radius)
-            pygame.draw.circle(self.screen, self.WHITE, (dot_x, dot_y), self.DOT_RADIUS)
+            pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
 
             # --- Update Display ---
             # Flip the display to show the new frame
@@ -158,6 +171,8 @@ class Dot_Simulator:
             
     def run_shared(self):
         pass
+        # pred = MaxEntPredictor(policies)
+        # policy = SharedAutoPolicy(policies, list(range(len(action_space))))
 
 
 
