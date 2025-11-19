@@ -82,8 +82,11 @@ class Dot_Simulator:
         
         return (0, 0)
     
-    def execute_action(self, action): # note: action must be in form: (0, 0)
-        self.dot_x += self.DOT_SPEED * action[0]
+    def execute_action(self, action, is_tuple=False): # note: action must be in form: (x, y)
+        if is_tuple == False: # if the action is NOT of form (x, y) then we need to convert it
+            action = self.index_to_tuple(action)
+            
+        self.dot_x += self.DOT_SPEED * action[0] # execute the action
         self.dot_y += self.DOT_SPEED * action[1]
         
     def run_auton(self):
@@ -187,16 +190,16 @@ class Dot_Simulator:
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
                 u = 0 # Update 'u' if necessary
-                self.execute_action(self.index_to_tuple(u))
+                self.execute_action(u)
             if keys[pygame.K_DOWN]:
                 u = 1
-                self.execute_action(self.index_to_tuple(u))
+                self.execute_action(u)
             if keys[pygame.K_LEFT]:
                 u = 2
-                self.execute_action(self.index_to_tuple(u))
+                self.execute_action(u)
             if keys[pygame.K_RIGHT]:
                 u = 3
-                self.execute_action(self.index_to_tuple(u))
+                self.execute_action(u)
                 
                         
             # get the probability of the policies based on the user's control signal
@@ -216,12 +219,12 @@ class Dot_Simulator:
             
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
-                self.execute_action(self.index_to_tuple(u))
+                self.execute_action(u)
                 print("EXECUTING ACTION")
                     
             else: 
                 blended_action = [(x + y) / 2 for x, y in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
-                self.execute_action(blended_action)
+                self.execute_action(blended_action, is_tuple=True)
 
 
             # --- Game Logic ---
