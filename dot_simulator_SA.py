@@ -17,7 +17,7 @@ class Dot_Policy:
     
     def get_q_value(self, state, action): 
         # return q value for a given action
-        print(self.q_table[state[0], state[1], action])
+        # print(self.q_table[state[0], state[1], action])
 
         return self.q_table[state[0], state[1], action]
 
@@ -182,27 +182,27 @@ class Dot_Simulator:
         
         u = -1
         running = True
+
         while running:
-            # --- Event Handling ---
-            # Check for all user events in the queue
+            # --- 1. Event Handling (Only for QUIT, initial key presses, and key releases) ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    # If the user clicks the window's close button
                     running = False
-                elif event.type == pygame.KEYDOWN:
-                    # If a key is pressed
-                    if event.key == pygame.K_UP:
-                        self.dot_y -= self.DOT_SPEED
-                        u = 0
-                    elif event.key == pygame.K_DOWN:
-                        self.dot_y += self.DOT_SPEED
-                        u = 1
-                    elif event.key == pygame.K_LEFT:
-                        self.dot_x -= self.DOT_SPEED
-                        u = 2
-                    elif event.key == pygame.K_RIGHT:
-                        self.dot_x += self.DOT_SPEED
-                        u = 3
+                pass # The movement logic is moved outside the event loop
+    
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_UP]:
+                self.dot_y -= self.DOT_SPEED
+                u = 0 # Update 'u' if necessary
+            if keys[pygame.K_DOWN]:
+                self.dot_y += self.DOT_SPEED
+                u = 1
+            if keys[pygame.K_LEFT]:
+                self.dot_x -= self.DOT_SPEED
+                u = 2
+            if keys[pygame.K_RIGHT]:
+                self.dot_x += self.DOT_SPEED
+                u = 3
                         
             # prob = pred.get_prob_after_obs(self.get_state(), u)
             prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
