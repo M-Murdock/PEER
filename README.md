@@ -3,7 +3,10 @@
 
 - `dot_simulator_SA.py` creates a simple simulation environment in which you control a dot with arrow keys. This is a shared autonomy system with multiple trained policies.
 
-- `dot_shape_training.py` and `dot_corners_training.py` train policies for tracing shapes and moving to the corners of the screen, respectively. 
+    - `trained_policies/` contains all the trained policies used in the SA system
+    - `training/` contains all the code for training the policies 
+
+
 
 
 ## Resources 
