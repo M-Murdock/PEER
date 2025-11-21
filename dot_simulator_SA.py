@@ -26,6 +26,7 @@ class Dot_Policy:
 class Dot_Simulator:
     def __init__(self, policy_dir="trained_policies"):
             # --- Constants ---
+        self.GAMMA = 0.4
         # Screen dimensions
         self.SCREEN_WIDTH = 600
         self.SCREEN_HEIGHT = 600
@@ -204,19 +205,23 @@ class Dot_Simulator:
             # get the probability of the policies based on the user's control signal
             if sum(keys) == 0: # no key is being pressed:
                 prob = pred.get_prob()
+                # prob = pred.get_prob_after_obs(self.get_state(self.dot_x, self.dot_y), u)
             else:
                 prob = pred.get_prob_after_obs(self.get_state(self.dot_x, self.dot_y), u)
                 
             # using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
-            # print(f"Prob:{prob}, Optimal Action:{optimal_action}")
+            print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
                 self.execute_action(u)
                     
             else: 
-                blended_action = [(x + y) / 2 for x, y in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
+                blended_action = self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action))
+                # blended_action = [self.blend(a,b) for a, b in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
+                # print("BLENDED")
+                # print(f"u: {self.index_to_tuple(u)}, a: {self.index_to_tuple(optimal_action)}, blended: {blended_action}")
                 self.execute_action(blended_action, is_tuple=True)
 
             # Boundary check to keep the dot on the screen
@@ -224,7 +229,11 @@ class Dot_Simulator:
             # Redraw the dot in its new position
             self.redraw_screen()
             
-            
+    # compute an action which blends u and a*
+    def blend(self, u, a):
+        # return (a*self.GAMMA) + (b*(1-self.GAMMA))
+        # action = gamma*u + (1-gamma)a
+        return ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
 
 
 dot = Dot_Simulator()
