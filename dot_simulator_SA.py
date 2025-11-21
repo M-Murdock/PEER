@@ -1,5 +1,6 @@
 # Import the pygame library
 import pygame
+import pygame.freetype
 import sys
 import numpy as np
 from util.shared_auto import SharedAutoPolicy
@@ -60,12 +61,17 @@ class Dot_Simulator:
         # Set up the display window
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
         pygame.display.set_caption("Dot Mover Simulation")
+        # set the font
+        self.TEXT_SIZE = 15
+        pygame.font.init() 
+        self.font = pygame.freetype.SysFont('Arial', self.TEXT_SIZE)
         # Clock for controlling the frame rate 
         self.clock = pygame.time.Clock()
         
         # Get all the policies from the given directory
         self.POLICY_DIR = policy_dir
         self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]]
+        
 
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
@@ -97,11 +103,15 @@ class Dot_Simulator:
         self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
         self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
             
-    def redraw_screen(self):
+    def redraw_screen(self, text=None):
         # Fill the entire screen with black
         self.screen.fill(self.BLACK)
         # Draw the white dot on the screen
         pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
+        # If there's any text we want to show (optional)
+        if text:
+            text_surface, _ = self.font.render(text, (255, 255, 255))
+            self.screen.blit(text_surface, (5,5))
         # Flip the display to show the new frame
         pygame.display.flip()
         # Cap the frame rate
@@ -211,7 +221,7 @@ class Dot_Simulator:
                 
             # using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
-            print(f"Prob:{prob}, Optimal Action:{optimal_action}")
+            # print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
@@ -227,7 +237,7 @@ class Dot_Simulator:
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position
-            self.redraw_screen()
+            self.redraw_screen(f"Prob: {prob}")
             
     # compute an action which blends u and a*
     def blend(self, u, a):
