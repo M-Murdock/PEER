@@ -40,12 +40,12 @@ class Method_Selector:
                 pygame.draw.rect(self.screen, self.HIGHLIGHT_COLOR, self.rect, border_radius=6)
             
             # Draw text
-            text = self.FONT.render(option, True, self.TEXT_COLOR)
+            text = self.FONT.render(option.value, True, self.TEXT_COLOR)
             self.screen.blit(text, (60, y))
             y += 50
         pygame.display.flip()
 
-    def run(self):
+    def get(self):
         running = True
 
         while running:

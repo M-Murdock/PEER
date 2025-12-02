@@ -7,6 +7,8 @@ from util.shared_auto import SharedAutoPolicy
 from util.bayesian_pred import BayesianPredictor
 from os import listdir
 from os.path import isfile, join
+from selector import Method_Selector
+from util.SA_types import Inference, Assistance, Arbitration
 
 class Dot_Policy:
     def __init__(self, q_table_file="q_table_topleft.npy"):
@@ -25,7 +27,7 @@ class Dot_Policy:
         return np.argmax(self.q_table[state[0], state[1], :])
 
 class Dot_Simulator:
-    def __init__(self, policy_dir="trained_policies"):
+    def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN):
             # --- Constants ---
         self.GAMMA = 0.4
         # Screen dimensions
@@ -53,6 +55,8 @@ class Dot_Simulator:
 
         # up, down, left, right
         self.ACTION_SPACE_LEN = 4
+        
+        self.INFERENCE_TYPE = inference_type
 
         # --- Initialization ---
         # Initialize all imported pygame modules
@@ -71,7 +75,6 @@ class Dot_Simulator:
         self.POLICY_DIR = policy_dir
         self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]]
         
-
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
         state_x = int(max(0, min(x, self.SCREEN_WIDTH - 1)) // self.GRID_SIZE)
@@ -180,7 +183,11 @@ class Dot_Simulator:
             
     def run_shared(self):
 
-        pred = BayesianPredictor(self.POLICIES)
+        if self.INFERENCE_TYPE is Inference.BAYESIAN:
+            pred = BayesianPredictor(self.POLICIES)
+        elif self.INFERENCE_TYPE is Inference.MAX_ENT:
+            pass
+            
         policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
         
         u = -1
@@ -213,10 +220,10 @@ class Dot_Simulator:
                 continue
             
             # get the probability of the policies based on the user's control signal
-            prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
+            self.prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
 
             # using the most likely policy, calculate the next optimal action
-            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
+            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob) # Get robot's predicted action
 
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
@@ -229,21 +236,24 @@ class Dot_Simulator:
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position
-            self.redraw_screen(f"Policy Probabilities:\n {prob}")
+            self.redraw_screen(f"Policy Probabilities:\n {self.prob}")
             
     # compute an action which blends u and a*
     def blend(self, u, a):
-        # blend user input with optimal action
         blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
         # convert to unit vector
         mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
         if mag == 0:
             return (0,0)
-        
         return (blended[0]/mag, blended[1]/mag)
 
 
-dot = Dot_Simulator()
+# get the inference method from the user
+inference_selector = Method_Selector(options=[Inference.MAX_ENT, Inference.BAYESIAN], caption="Inference Method")
+inference_type = inference_selector.get() # get the user's selection 
+
+
+dot = Dot_Simulator(inference_type=inference_type)
 # dot.run_teleop()
 # dot.run_auton()
 dot.run_shared()
