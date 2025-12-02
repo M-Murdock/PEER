@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 
 class Inference(Enum):
     BAYESIAN = "Bayesian"
@@ -8,5 +8,5 @@ class Assistance(Enum):
     pass
 
 class Arbitration(Enum):
-    LINEAR = auto()
-    PROBABILISTIC = auto()
+    LINEAR = "Linear"
+    PROBABILISTIC = "Probabilistic"

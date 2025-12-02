@@ -4,10 +4,10 @@ import pygame.freetype
 import sys
 import numpy as np
 from util.shared_auto import SharedAutoPolicy
-from util.bayesian_pred import BayesianPredictor
+from util.predictors import BayesianPredictor, MaxEntPredictor
 from os import listdir
 from os.path import isfile, join
-from selector import Method_Selector
+from util.selector import Method_Selector
 from util.SA_types import Inference, Assistance, Arbitration
 
 class Dot_Policy:
@@ -63,7 +63,8 @@ class Dot_Simulator:
         pygame.init()
         # Set up the display window
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        pygame.display.set_caption("Dot Mover Simulation")
+        caption = "Dot Mover Simulation: " + inference_type.value
+        pygame.display.set_caption(caption)
         # set the font
         self.TEXT_SIZE = 15
         pygame.font.init() 
@@ -183,10 +184,10 @@ class Dot_Simulator:
             
     def run_shared(self):
 
-        if self.INFERENCE_TYPE is Inference.BAYESIAN:
+        if self.INFERENCE_TYPE is Inference.BAYESIAN: # Bayesian Prediction
             pred = BayesianPredictor(self.POLICIES)
-        elif self.INFERENCE_TYPE is Inference.MAX_ENT:
-            pass
+        elif self.INFERENCE_TYPE is Inference.MAX_ENT: #Max Entropy Prediction
+            pred = MaxEntPredictor(self.POLICIES)
             
         policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
         
