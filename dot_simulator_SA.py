@@ -4,7 +4,7 @@ import pygame.freetype
 import sys
 import numpy as np
 from util.shared_auto import SharedAutoPolicy
-from util.maxent_pred import MaxEntPredictor
+from util.bayesian_pred import BayesianPredictor
 from os import listdir
 from os.path import isfile, join
 
@@ -53,7 +53,6 @@ class Dot_Simulator:
 
         # up, down, left, right
         self.ACTION_SPACE_LEN = 4
-        # len(self.q_table[state[0], state[1], :])
 
         # --- Initialization ---
         # Initialize all imported pygame modules
@@ -181,12 +180,13 @@ class Dot_Simulator:
             
     def run_shared(self):
 
-        pred = MaxEntPredictor(self.POLICIES)
+        pred = BayesianPredictor(self.POLICIES)
         policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
         
         u = -1
         running = True
 
+        
         while running:
             # --- 1. Event Handling (Only for QUIT, initial key presses, and key releases) ---
             for event in pygame.event.get():
@@ -213,15 +213,10 @@ class Dot_Simulator:
                 continue
             
             # get the probability of the policies based on the user's control signal
-            if sum(keys) == 0: # no key is being pressed:
-                prob = pred.get_prob()
-                # prob = pred.get_prob_after_obs(self.get_state(self.dot_x, self.dot_y), u)
-            else:
-                prob = pred.get_prob_after_obs(self.get_state(self.dot_x, self.dot_y), u)
-                
+            prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
+
             # using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), prob) # Get robot's predicted action
-            # print(f"Prob:{prob}, Optimal Action:{optimal_action}")
 
             # using the optimal action and control signal, blend them together
             if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
@@ -229,21 +224,23 @@ class Dot_Simulator:
                     
             else: 
                 blended_action = self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action))
-                # blended_action = [self.blend(a,b) for a, b in zip(self.index_to_tuple(u), self.index_to_tuple(optimal_action))]
-                # print("BLENDED")
-                # print(f"u: {self.index_to_tuple(u)}, a: {self.index_to_tuple(optimal_action)}, blended: {blended_action}")
                 self.execute_action(blended_action, is_tuple=True)
 
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position
-            self.redraw_screen(f"Prob: {prob}")
+            self.redraw_screen(f"Policy Probabilities:\n {prob}")
             
     # compute an action which blends u and a*
     def blend(self, u, a):
-        # return (a*self.GAMMA) + (b*(1-self.GAMMA))
-        # action = gamma*u + (1-gamma)a
-        return ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
+        # blend user input with optimal action
+        blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
+        # convert to unit vector
+        mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
+        if mag == 0:
+            return (0,0)
+        
+        return (blended[0]/mag, blended[1]/mag)
 
 
 dot = Dot_Simulator()

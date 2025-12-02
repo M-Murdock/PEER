@@ -3,6 +3,7 @@ import pygame
 import sys
 import numpy as np # For the Q-table and calculations
 import math # For distance calculations
+import random
 
 # --- Constants ---
 # Screen dimensions
@@ -22,21 +23,21 @@ DOT_SPEED = 5 # This is now the agent's action magnitude
 # --- Target Square Definition ---
 # Define the corners of the square path
 # --- Top Left ---
-TOP_LEFT_X = 14
-TOP_LEFT_Y = 12
-Q_TABLE_FILE = "q_table_topleft.npy"
+# TOP_LEFT_X = 14
+# TOP_LEFT_Y = 12
+# Q_TABLE_FILE = "./trained_policies/q_table_topleft.npy"
 # --- Top Right ---
 # TOP_LEFT_X = 559
 # TOP_LEFT_Y = 12
-# Q_TABLE_FILE = "q_table_topright.npy"
+# Q_TABLE_FILE = "./trained_policies/q_table_topright.npy"
 # --- Bottom Right ---
 # TOP_LEFT_X = 559
 # TOP_LEFT_Y = 559
-# Q_TABLE_FILE = "q_table_bottomright.npy"
+# Q_TABLE_FILE = "./trained_policies/q_table_bottomright.npy"
 # --- Bottom Left ---
-# TOP_LEFT_X = 12
-# TOP_LEFT_Y = 559
-# Q_TABLE_FILE = "q_table_bottomleft.npy"
+TOP_LEFT_X = 12
+TOP_LEFT_Y = 559
+Q_TABLE_FILE = "./trained_policies/q_table_bottomleft.npy"
 
 
 # --- Q-Learning Parameters ---
@@ -100,14 +101,17 @@ def main():
         MIN_EPSILON = 0.01
 
         # Training parameters
-        NUM_EPISODES = 8000
+        NUM_EPISODES = 80000
         STEPS_PER_EPISODE = 100
 
         # --- Main Training Loop ---
         for episode in range(NUM_EPISODES):
             # Reset dot to the center for each new episode
-            dot_x = SCREEN_WIDTH // 2
-            dot_y = SCREEN_HEIGHT // 2
+            # dot_x = SCREEN_WIDTH // 2
+            # dot_y = SCREEN_HEIGHT // 2
+            # reset dot to random location for each new episode
+            dot_x = random.randint(0, SCREEN_WIDTH)
+            dot_y = random.randint(0, SCREEN_HEIGHT)
             
             for step in range(STEPS_PER_EPISODE):
                 # --- Event Handling (to keep window responsive) ---
