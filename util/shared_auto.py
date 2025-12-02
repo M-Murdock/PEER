@@ -2,7 +2,7 @@
 import numpy as np
 import scipy
 
-from util import iter_space, linprog
+from util import iter_space
 
 
 class SharedAutoPolicy:
