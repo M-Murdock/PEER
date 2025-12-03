@@ -26,6 +26,7 @@ class Dot_Policy:
     def get_action(self, state):
         return np.argmax(self.q_table[state[0], state[1], :])
 
+# -------------------------------------------------------------------------------------------------------------------
 class Dot_Simulator:
     def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN, assistance_type=Assistance.DISTRIBUTION, arbitration_type=Arbitration.LINEAR):
             # --- Constants ---
@@ -37,7 +38,6 @@ class Dot_Simulator:
         # Colors 
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
-        # self.GREEN = (0, 255, 0) # For the target square
         self.RED = (255, 0, 0) # For the dot (to see it better)
 
         # Dot properties
@@ -65,7 +65,7 @@ class Dot_Simulator:
         pygame.init()
         # Set up the display window
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        caption = "Dot Mover Simulation: " + inference_type.value + " " + assistance_type.value + " " + arbitration_type.value
+        caption = "Dot Mover Simulation: " + inference_type.value + ", " + assistance_type.value + ", " + arbitration_type.value
         pygame.display.set_caption(caption)
         # set the font
         self.TEXT_SIZE = 15
@@ -84,7 +84,6 @@ class Dot_Simulator:
         state_y = int(max(0, min(y, self.SCREEN_HEIGHT - 1)) // self.GRID_SIZE)
         return (state_x, state_y)
 
-        
     def index_to_tuple(self, index):
         if index == 0:
             return (0, -1)
@@ -211,16 +210,12 @@ class Dot_Simulator:
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
                 u = 0 
-                self.execute_action(u)
             if keys[pygame.K_DOWN]:
                 u = 1
-                self.execute_action(u)
             if keys[pygame.K_LEFT]:
                 u = 2
-                self.execute_action(u)
             if keys[pygame.K_RIGHT]:
                 u = 3
-                self.execute_action(u)
                 
             # don't move the dot until AFTER the user has given their first control signal
             if u == -1:
@@ -233,13 +228,15 @@ class Dot_Simulator:
             # using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob) # Get robot's predicted action
 
-            # using the optimal action and control signal, blend them together
-            if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
-                self.execute_action(u)
+            # blend the optimal action and control signal
+            self.execute_action(self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action)), is_tuple=True)
+            # # using the optimal action and control signal, blend them together
+            # if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
+            #     self.execute_action(u)
                     
-            else: 
-                blended_action = self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action))
-                self.execute_action(blended_action, is_tuple=True)
+            # else: 
+            #     blended_action = self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action))
+            #     self.execute_action(blended_action, is_tuple=True)
 
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
@@ -249,19 +246,25 @@ class Dot_Simulator:
     # compute an action which blends u and a*
     def blend(self, u, a):
         # Get the selected arbitration method
-        if self.ARBITRATION_TYPE is Arbitration.LINEAR: # linear arbitration
+        
+        # linear arbitration
+        if self.ARBITRATION_TYPE is Arbitration.LINEAR: 
             blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
             # convert to unit vector
             mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
             if mag == 0:
                 return (0,0)
             return (blended[0]/mag, blended[1]/mag)
+        
         elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
             pass # put something here
+        
         elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT: # if ONLY_ROBOT (i.e. don't follow user input at all)
             return a
 
 
+# -------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
 # get the inference method from the user
 inference_selector = Method_Selector(options=[i for i in Inference], caption="Inference Method")
 inference_type = inference_selector.get() # get the user's selection 
