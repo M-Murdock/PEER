@@ -196,7 +196,6 @@ class Dot_Simulator:
         
         u = -1
         running = True
-
         
         while running:
             # --- 1. Event Handling (Only for QUIT, initial key presses, and key releases) ---
@@ -226,7 +225,6 @@ class Dot_Simulator:
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob) # Get robot's predicted action
 
             # Arbitration: blend the optimal action and control signal
-            # self.execute_action(self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action)))
             self.execute_action(self.blend(u, optimal_action))
 
             # Boundary check to keep the dot on the screen
@@ -240,7 +238,6 @@ class Dot_Simulator:
         u = self.index_to_tuple(u)
         a = self.index_to_tuple(a)
         
-        
         # linear arbitration
         if self.ARBITRATION_TYPE is Arbitration.LINEAR: 
             blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
@@ -249,9 +246,26 @@ class Dot_Simulator:
             if mag == 0:
                 return (0,0)
             return (blended[0]/mag, blended[1]/mag)
+        
         # probabilistic arbitration
         elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
-            pass # put something here
+            self.robot_confidence = max(self.prob)
+            print(self.robot_confidence)
+
+            p_robot = float(self.robot_confidence)
+
+            # Probabilistic mixture
+            blended = (
+                p_robot * a[0] + (1 - p_robot) * u[0],
+                p_robot * a[1] + (1 - p_robot) * u[1]
+            )
+
+            # Normalize
+            mag = np.sqrt(blended[0]**2 + blended[1]**2)
+            if mag == 0:
+                return (0, 0)
+            return (blended[0]/mag, blended[1]/mag)
+        
         # no blending (i.e. don't follow user input at all)
         elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT:
             return a
