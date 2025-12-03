@@ -96,10 +96,7 @@ class Dot_Simulator:
         
         return (0, 0)
     
-    def execute_action(self, action, is_tuple=False): # note: action must be in form: (x, y)
-        if is_tuple == False: # if the action is NOT of form (x, y) then we need to convert it
-            action = self.index_to_tuple(action)
-            
+    def execute_action(self, action): # note: action must be in form: (x, y)   
         self.dot_x += self.DOT_SPEED * action[0] # execute the action
         self.dot_y += self.DOT_SPEED * action[1]
     
@@ -222,21 +219,15 @@ class Dot_Simulator:
                 self.redraw_screen()
                 continue
             
-            # get the probability of the policies based on the user's control signal
+            # Inference: get the probability of the policies based on the user's control signal
             self.prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
 
-            # using the most likely policy, calculate the next optimal action
+            # Assistance: using the most likely policy, calculate the next optimal action
             optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob) # Get robot's predicted action
 
-            # blend the optimal action and control signal
-            self.execute_action(self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action)), is_tuple=True)
-            # # using the optimal action and control signal, blend them together
-            # if u == optimal_action: # if the control signal and optimal action are the same, just execute it     
-            #     self.execute_action(u)
-                    
-            # else: 
-            #     blended_action = self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action))
-            #     self.execute_action(blended_action, is_tuple=True)
+            # Arbitration: blend the optimal action and control signal
+            # self.execute_action(self.blend(self.index_to_tuple(u),  self.index_to_tuple(optimal_action)))
+            self.execute_action(self.blend(u, optimal_action))
 
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
@@ -245,7 +236,10 @@ class Dot_Simulator:
             
     # compute an action which blends u and a*
     def blend(self, u, a):
-        # Get the selected arbitration method
+        # convert from action index to x,y
+        u = self.index_to_tuple(u)
+        a = self.index_to_tuple(a)
+        
         
         # linear arbitration
         if self.ARBITRATION_TYPE is Arbitration.LINEAR: 
@@ -255,11 +249,11 @@ class Dot_Simulator:
             if mag == 0:
                 return (0,0)
             return (blended[0]/mag, blended[1]/mag)
-        
+        # probabilistic arbitration
         elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
             pass # put something here
-        
-        elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT: # if ONLY_ROBOT (i.e. don't follow user input at all)
+        # no blending (i.e. don't follow user input at all)
+        elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT:
             return a
 
 
