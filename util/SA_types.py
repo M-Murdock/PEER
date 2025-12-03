@@ -5,8 +5,9 @@ class Inference(Enum):
     MAX_ENT = "Max Entropy"
     
 class Assistance(Enum):
-    pass
+    DISTRIBUTION = "Distribution"
 
 class Arbitration(Enum):
     LINEAR = "Linear"
     PROBABILISTIC = "Probabilistic"
+    ONLY_ROBOT = "Robot Action Only"

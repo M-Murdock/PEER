@@ -27,7 +27,7 @@ class Dot_Policy:
         return np.argmax(self.q_table[state[0], state[1], :])
 
 class Dot_Simulator:
-    def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN):
+    def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN, assistance_type=Assistance.DISTRIBUTION, arbitration_type=Arbitration.LINEAR):
             # --- Constants ---
         self.GAMMA = 0.4
         # Screen dimensions
@@ -57,13 +57,15 @@ class Dot_Simulator:
         self.ACTION_SPACE_LEN = 4
         
         self.INFERENCE_TYPE = inference_type
+        self.ASSISTANCE_TYPE = assistance_type
+        self.ARBITRATION_TYPE = arbitration_type
 
         # --- Initialization ---
         # Initialize all imported pygame modules
         pygame.init()
         # Set up the display window
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        caption = "Dot Mover Simulation: " + inference_type.value
+        caption = "Dot Mover Simulation: " + inference_type.value + " " + assistance_type.value + " " + arbitration_type.value
         pygame.display.set_caption(caption)
         # set the font
         self.TEXT_SIZE = 15
@@ -184,12 +186,17 @@ class Dot_Simulator:
             
     def run_shared(self):
 
+        # Get the selected inference method
         if self.INFERENCE_TYPE is Inference.BAYESIAN: # Bayesian Prediction
             pred = BayesianPredictor(self.POLICIES)
-        elif self.INFERENCE_TYPE is Inference.MAX_ENT: #Max Entropy Prediction
+        elif self.INFERENCE_TYPE is Inference.MAX_ENT: # Max Entropy Prediction
             pred = MaxEntPredictor(self.POLICIES)
             
-        policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
+        # Get the selected assistance method
+        if self.ASSISTANCE_TYPE is Assistance.DISTRIBUTION:
+            policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
+        else:
+            pass
         
         u = -1
         running = True
@@ -241,20 +248,34 @@ class Dot_Simulator:
             
     # compute an action which blends u and a*
     def blend(self, u, a):
-        blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
-        # convert to unit vector
-        mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
-        if mag == 0:
-            return (0,0)
-        return (blended[0]/mag, blended[1]/mag)
+        # Get the selected arbitration method
+        if self.ARBITRATION_TYPE is Arbitration.LINEAR: # linear arbitration
+            blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
+            # convert to unit vector
+            mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
+            if mag == 0:
+                return (0,0)
+            return (blended[0]/mag, blended[1]/mag)
+        elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
+            pass # put something here
+        elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT: # if ONLY_ROBOT (i.e. don't follow user input at all)
+            return a
 
 
 # get the inference method from the user
-inference_selector = Method_Selector(options=[Inference.MAX_ENT, Inference.BAYESIAN], caption="Inference Method")
+inference_selector = Method_Selector(options=[i for i in Inference], caption="Inference Method")
 inference_type = inference_selector.get() # get the user's selection 
 
+# get the assistance method from the user
+assistance_selector = Method_Selector(options=[d for d in Assistance], caption="Assistance Method")
+assistance_type = assistance_selector.get() # get the user's selection 
 
-dot = Dot_Simulator(inference_type=inference_type)
+# get the blending method from the user
+arbitration_selector = Method_Selector(options=[a for a in Arbitration], caption="Arbitration Method")
+arbitration_type = arbitration_selector.get() # get the user's selection 
+
+
+dot = Dot_Simulator(inference_type=inference_type, assistance_type=assistance_type, arbitration_type=arbitration_type)
 # dot.run_teleop()
 # dot.run_auton()
 dot.run_shared()
