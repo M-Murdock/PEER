@@ -4,7 +4,7 @@ import pygame.freetype
 import sys
 import numpy as np
 from util.shared_auto import SharedAutoPolicy
-from util.predictors import BayesianPredictor, MaxEntPredictor
+from util.predictors import BayesianPredictor, MaxEntPredictor, CRFPredictor
 from os import listdir
 from os.path import isfile, join
 from util.selector import Method_Selector
@@ -187,6 +187,9 @@ class Dot_Simulator:
             pred = BayesianPredictor(self.POLICIES)
         elif self.INFERENCE_TYPE is Inference.MAX_ENT: # Max Entropy Prediction
             pred = MaxEntPredictor(self.POLICIES)
+        elif self.INFERENCE_TYPE is Inference.CRF: # Conditional Random Field Prediction
+            pred = CRFPredictor(self.POLICIES)
+
             
         # Get the selected assistance method
         if self.ASSISTANCE_TYPE is Assistance.DISTRIBUTION:
