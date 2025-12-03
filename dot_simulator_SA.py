@@ -118,67 +118,6 @@ class Dot_Simulator:
         # Cap the frame rate
         self.clock.tick(60)
             
-    def run_auton(self):
-        print("--- Mode: RUNNING POLICY ---")
-
-        test_policy = self.POLICIES[0]
-        running = True
-        while running:
-            # --- Event Handling (to allow quitting) ---
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-            # --- Agent Logic (Exploitation only) ---
-            # 1. Get current state
-            current_state = self.get_state(self.dot_x, self.dot_y)
-            
-            # 2. Choose action (epsilon=0 for pure exploitation)
-            action = test_policy.get_action(current_state)
-            
-            # 3. Take action (move the dot)
-            if action == 0: # Up
-                self.dot_y -= self.DOT_SPEED
-            elif action == 1: # Down
-                self.dot_y += self.DOT_SPEED
-            elif action == 2: # Left
-                self.dot_x -= self.DOT_SPEED
-            elif action == 3: # Right
-                self.dot_x += self.DOT_SPEED
-
-            # Boundary check to keep the dot on the screen
-            self.ensure_within_boundaries()
-            # Redraw the dot in its new position
-            self.redraw_screen()
-
-        pygame.quit()
-        sys.exit()
-
-    def run_teleop(self):
-        # --- Main Game Loop ---
-        running = True
-        while running:
-            # --- Event Handling ---
-            # Check for all user events in the queue
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    # If the user clicks the window's close button
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    # If a key is pressed
-                    if event.key == pygame.K_UP:
-                        self.dot_y -= self.DOT_SPEED
-                    elif event.key == pygame.K_DOWN:
-                        self.dot_y += self.DOT_SPEED
-                    elif event.key == pygame.K_LEFT:
-                        self.dot_x -= self.DOT_SPEED
-                    elif event.key == pygame.K_RIGHT:
-                        self.dot_x += self.DOT_SPEED
-            
-            # Boundary check to keep the dot on the screen
-            self.ensure_within_boundaries()
-            # Redraw the dot in its new position
-            self.redraw_screen()
             
     def run_shared(self):
 

@@ -6,6 +6,12 @@
     - `trained_policies/` contains all the trained policies used in the SA system
     - `training/` contains all the code for training the policies 
 
+- `util.py` contains the utilities needed for `dot_simulator_SA.py`
+    - `predictors.py`: Techniques for the inference step
+    - `SA_types.py`: Enums of the options for SA inference, assistance, and arbitration steps
+    - `selector.py`: Creates a gui which lets users select an item from a list
+    - `shared_auto.py`: Assistance methods
+ 
 
 
 
