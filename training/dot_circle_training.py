@@ -2,6 +2,7 @@ import pygame
 import sys
 import numpy as np
 import math
+import random
 
 # --- Constants ---
 SCREEN_WIDTH = 600
@@ -95,7 +96,7 @@ def main():
     EPSILON = 1.0    
     EPSILON_DECAY = 0.9996 # Slow decay for complex movement
     MIN_EPSILON = 0.01
-    NUM_EPISODES = 15000   # Needs time to learn the flow
+    NUM_EPISODES = 80000   # Needs time to learn the flow
 
     if MODE == "run":
         try:
@@ -106,7 +107,9 @@ def main():
             sys.exit()
 
     for episode in range(NUM_EPISODES):
-        dot_x, dot_y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        # dot_x, dot_y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+        dot_x = random.randint(0, SCREEN_WIDTH)
+        dot_y = random.randint(0, SCREEN_HEIGHT)
         
         # Run longer episodes so it can complete full loops
         for step in range(400):

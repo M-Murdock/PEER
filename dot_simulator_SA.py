@@ -38,13 +38,11 @@ class Dot_Simulator:
         # Colors 
         self.BLACK = (0, 0, 0)
         self.WHITE = (255, 255, 255)
-        self.RED = (255, 0, 0) # For the dot (to see it better)
 
         # Dot properties
         self.DOT_RADIUS = 8
         self.DOT_SPEED = 5 # This is now the agent's action magnitude
 
-        # --- Top Left ---
         # Discretize the state space
         self.GRID_SIZE = 20 # 20x20 pixel cells
         self.STATES_X = self.SCREEN_WIDTH // self.GRID_SIZE   # 30 states
@@ -60,7 +58,7 @@ class Dot_Simulator:
         self.ASSISTANCE_TYPE = assistance_type
         self.ARBITRATION_TYPE = arbitration_type
 
-        # --- Initialization ---
+            # --- Initialization ---
         # Initialize all imported pygame modules
         pygame.init()
         # Set up the display window
@@ -192,7 +190,6 @@ class Dot_Simulator:
         # probabilistic arbitration
         elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
             self.robot_confidence = max(self.prob)
-            print(self.robot_confidence)
 
             p_robot = float(self.robot_confidence)
 
@@ -229,7 +226,5 @@ arbitration_type = arbitration_selector.get() # get the user's selection
 
 
 dot = Dot_Simulator(inference_type=inference_type, assistance_type=assistance_type, arbitration_type=arbitration_type)
-# dot.run_teleop()
-# dot.run_auton()
 dot.run_shared()
 
