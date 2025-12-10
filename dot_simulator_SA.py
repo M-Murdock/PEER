@@ -86,13 +86,14 @@ class Dot_Simulator:
         
     def generate_colors(self, n=1):
         colors = []
-        colors.append((255, 255, 255))
-        for i in range(n-1):
-            r = (i * 123) % 255
-            g = (i * 231) % 255
-            b = (i * 77) % 255
+        for i in range(n):
+            # use scaling to spread values evenly in 1–254
+            r = ((i+1) * 123) % 254
+            g = ((i+1) * 231) % 254
+            b = ((i+1) * 77) % 254
             colors.append((r, g, b))
         return colors
+
 
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
