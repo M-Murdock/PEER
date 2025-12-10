@@ -102,7 +102,30 @@ class Dot_Simulator:
         self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
         self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
             
-    def redraw_screen(self, text=None):
+    def draw_probability_bars(self, probs):
+        """
+        Draws a horizontal bar chart for the goal probabilities.
+        """
+        num_policies = len(probs)
+        bar_width = self.SCREEN_WIDTH // num_policies
+        max_bar_height = 80  # height of bar chart region at top
+
+        for i, p in enumerate(probs):
+            # Bar dimensions
+            height = int(max_bar_height * float(p))
+            x = i * bar_width
+            y = 0  # drawn from the top down
+
+            # Bar color (white)
+            pygame.draw.rect(self.screen, self.WHITE,
+                            pygame.Rect(x, max_bar_height - height, bar_width - 4, height))
+
+            # Policy label + probability text
+            label = f"{i}: {p:.2f}"
+            text_surface, _ = self.font.render(label, self.WHITE)
+            self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
+
+    def redraw_screen(self, text=None, probs=None):
         # Fill the entire screen with black
         self.screen.fill(self.BLACK)
         # Draw the white dot on the screen
@@ -111,6 +134,10 @@ class Dot_Simulator:
         if text:
             text_surface, _ = self.font.render(text, (255, 255, 255))
             self.screen.blit(text_surface, (5,5))
+
+        if isinstance(probs, np.ndarray):
+            self.draw_probability_bars(probs)
+            # self.draw_probability_bars(self.prob)
         # Flip the display to show the new frame
         pygame.display.flip()
         # Cap the frame rate
@@ -170,7 +197,8 @@ class Dot_Simulator:
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position
-            self.redraw_screen(f"Policy Probabilities:\n {self.prob}")
+            # self.redraw_screen(f"Policy Probabilities:\n {self.prob}", self.prob)
+            self.redraw_screen(probs=self.prob)
             
     # compute an action which blends u and a*
     def blend(self, u, a):
