@@ -34,6 +34,7 @@ class Dot_Simulator:
         # Screen dimensions
         self.SCREEN_WIDTH = 600
         self.SCREEN_HEIGHT = 600
+        self.TOP_PANEL_HEIGHT = 120   # space above the dot region
 
         # Colors 
         self.BLACK = (0, 0, 0)
@@ -62,7 +63,8 @@ class Dot_Simulator:
         # Initialize all imported pygame modules
         pygame.init()
         # Set up the display window
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT + self.TOP_PANEL_HEIGHT))
+
         caption = "Dot Mover Simulation: " + inference_type.value + ", " + assistance_type.value + ", " + arbitration_type.value
         pygame.display.set_caption(caption)
         # set the font
@@ -101,6 +103,7 @@ class Dot_Simulator:
     def ensure_within_boundaries(self):
         self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
         self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
+
             
     def draw_probability_bars(self, probs):
         """
@@ -108,40 +111,45 @@ class Dot_Simulator:
         """
         num_policies = len(probs)
         bar_width = self.SCREEN_WIDTH // num_policies
-        max_bar_height = 80  # height of bar chart region at top
+        max_bar_height = self.TOP_PANEL_HEIGHT - 25  # leave space for labels
 
+        # Background for the top panel
+        pygame.draw.rect(self.screen, (30, 30, 30), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
+    
         for i, p in enumerate(probs):
             # Bar dimensions
             height = int(max_bar_height * float(p))
             x = i * bar_width
-            y = 0  # drawn from the top down
+            y = self.TOP_PANEL_HEIGHT - height
 
-            # Bar color (white)
-            pygame.draw.rect(self.screen, self.WHITE,
-                            pygame.Rect(x, max_bar_height - height, bar_width - 4, height))
+            pygame.draw.rect(
+            self.screen, 
+            self.WHITE,
+            pygame.Rect(x + 3, y, bar_width - 6, height)
+            )
+            
 
             # Policy label + probability text
             label = f"{i}: {p:.2f}"
             text_surface, _ = self.font.render(label, self.WHITE)
             self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
 
-    def redraw_screen(self, text=None, probs=None):
-        # Fill the entire screen with black
-        self.screen.fill(self.BLACK)
-        # Draw the white dot on the screen
-        pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, self.dot_y), self.DOT_RADIUS)
-        # If there's any text we want to show (optional)
-        if text:
-            text_surface, _ = self.font.render(text, (255, 255, 255))
-            self.screen.blit(text_surface, (5,5))
 
+    def redraw_screen(self, probs=None):
+        # Clear entire screen
+        self.screen.fill(self.BLACK)
+
+        # 1. --- Draw top panel probability bars ---
         if isinstance(probs, np.ndarray):
             self.draw_probability_bars(probs)
-            # self.draw_probability_bars(self.prob)
-        # Flip the display to show the new frame
+
+        # 2. --- Draw the dot in the lower gameplay region ---
+        dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
+        pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
+
         pygame.display.flip()
-        # Cap the frame rate
         self.clock.tick(60)
+
             
             
     def run_shared(self):
@@ -197,7 +205,6 @@ class Dot_Simulator:
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position
-            # self.redraw_screen(f"Policy Probabilities:\n {self.prob}", self.prob)
             self.redraw_screen(probs=self.prob)
             
     # compute an action which blends u and a*
