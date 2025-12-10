@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import math
 import random
+import policy_drawing_correspondences
 
 # --- Constants ---
 SCREEN_WIDTH = 600
@@ -19,6 +20,9 @@ CIRCLE_CENTER = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 CIRCLE_RADIUS = 200 
 
 Q_TABLE_FILE = "q_table_orbit.npy"
+
+# save info so that we can draw the goal in the simulation
+policy_drawing_correspondences.save_policy_info(Q_TABLE_FILE, {"type":"circle", "x":CIRCLE_CENTER[0], "y":CIRCLE_CENTER[1], "r":CIRCLE_RADIUS})
 
 # --- Q-Learning Parameters ---
 GRID_SIZE = 20 
@@ -97,7 +101,7 @@ def main():
     EPSILON_DECAY = 0.9996 # Slow decay for complex movement
     MIN_EPSILON = 0.01
     NUM_EPISODES = 80000   # Needs time to learn the flow
-
+    
     if MODE == "run":
         try:
             q_table = np.load(Q_TABLE_FILE)
@@ -166,6 +170,7 @@ def main():
     if MODE == "train":
         np.save(Q_TABLE_FILE, q_table)
         print("Training Saved.")
+        
 
 if __name__ == "__main__":
     main()

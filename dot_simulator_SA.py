@@ -9,6 +9,7 @@ from os import listdir
 from os.path import isfile, join
 from util.selector import Method_Selector
 from util.SA_types import Inference, Assistance, Arbitration
+from training import policy_drawing_correspondences
 
 class Dot_Policy:
     def __init__(self, q_table_file="q_table_topleft.npy"):
@@ -76,10 +77,23 @@ class Dot_Simulator:
         
         # Get all the policies from the given directory
         self.POLICY_DIR = policy_dir
-        self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]]
+        self.POLICY_FILES = [f for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]
+        self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in self.POLICY_FILES]]
         
         self.prob = np.zeros(len(self.POLICIES))
+        # colors that correspond with each policy
+        self.POLICY_COLORS = self.generate_colors(n=len(self.POLICIES))
         
+    def generate_colors(self, n=1):
+        colors = []
+        colors.append((255, 255, 255))
+        for i in range(n-1):
+            r = (i * 123) % 255
+            g = (i * 231) % 255
+            b = (i * 77) % 255
+            colors.append((r, g, b))
+        return colors
+
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
         state_x = int(max(0, min(x, self.SCREEN_WIDTH - 1)) // self.GRID_SIZE)
@@ -104,52 +118,8 @@ class Dot_Simulator:
     
     def ensure_within_boundaries(self):
         self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
-        self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
+        self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y)) 
 
-            
-    # def draw_probability_bars(self):
-    #     """
-    #     Draws a horizontal bar chart for the goal probabilities.
-    #     """
-    #     num_policies = len(self.prob)
-    #     bar_width = self.SCREEN_WIDTH // num_policies
-    #     max_bar_height = self.TOP_PANEL_HEIGHT - 25  # leave space for labels
-
-    #     # Background for the top panel
-    #     pygame.draw.rect(self.screen, (30, 30, 30), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
-    
-    #     for i, p in enumerate(self.prob):
-    #         # Bar dimensions
-    #         height = int(max_bar_height * float(p))
-    #         x = i * bar_width
-    #         y = self.TOP_PANEL_HEIGHT - height
-
-    #         pygame.draw.rect(
-    #         self.screen, 
-    #         self.WHITE,
-    #         pygame.Rect(x + 3, y, bar_width - 6, height)
-    #         )
-            
-
-    #         # Policy label + probability text
-    #         label = f"{i}: {p*100:.2f}"
-    #         text_surface, _ = self.font.render(label, self.BLACK)
-    #         self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
-
-
-    # def redraw_screen(self):
-    #     # Clear entire screen
-    #     self.screen.fill(self.BLACK)
-
-    #     # 1. --- Draw top panel probability bars ---
-    #     self.draw_probability_bars()
-
-    #     # 2. --- Draw the dot in the lower gameplay region ---
-    #     dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
-    #     pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
-
-    #     pygame.display.flip()
-    #     self.clock.tick(60)
     def draw_probability_bars(self):
         """
         Draws a horizontal bar chart for the goal probabilities in the top panel.
@@ -191,10 +161,10 @@ class Dot_Simulator:
                 pygame.Rect(bar_x, bar_bottom_y - max_bar_height, bar_w, max_bar_height)
             )
 
-            # --- Filled probability bar ---
+            # --- Filled probability bar --- 
             pygame.draw.rect(
                 self.screen,
-                self.WHITE,
+                self.POLICY_COLORS[i],
                 pygame.Rect(bar_x, bar_bottom_y - filled_height, bar_w, filled_height)
             )
 
@@ -203,7 +173,22 @@ class Dot_Simulator:
             text_surface, _ = self.font.render(label, self.WHITE)
             self.screen.blit(text_surface, (bar_x, 5))
 
-
+    def draw_goal_visualizations(self):
+        # for each file in trained_policies
+        for i, f in enumerate(self.POLICY_FILES):
+            # get the corresponding visualization info from visualization_correspondences.csv
+            draw_data = policy_drawing_correspondences.get_data_by_filename(f)
+            
+            if not draw_data is None:
+            
+                if draw_data["type"] == "circle":
+                    # draw the visualization
+                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), float(draw_data["r"]), width=1)
+                if draw_data["type"] == "point":
+                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), self.DOT_RADIUS)
+            
+            
+        
     def redraw_screen(self):
         # Fill bottom (gameplay region) with a different background for clear separation
         self.screen.fill((0, 0, 0))
@@ -214,6 +199,8 @@ class Dot_Simulator:
         # 2. Gameplay area (below the panel)
         dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
         pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
+        
+        self.draw_goal_visualizations()
 
         pygame.display.flip()
         self.clock.tick(60)
@@ -274,7 +261,6 @@ class Dot_Simulator:
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
             # Redraw the dot in its new position and display probabilities
-            print(self.prob)
             self.redraw_screen()
             
     # compute an action which blends u and a*
@@ -323,14 +309,15 @@ inference_selector = Method_Selector(options=[i for i in Inference], caption="In
 inference_type = inference_selector.get() # get the user's selection 
 
 # get the assistance method from the user
-assistance_selector = Method_Selector(options=[d for d in Assistance], caption="Assistance Method")
-assistance_type = assistance_selector.get() # get the user's selection 
+# assistance_selector = Method_Selector(options=[d for d in Assistance], caption="Assistance Method")
+# assistance_type = assistance_selector.get() # get the user's selection 
 
 # get the blending method from the user
 arbitration_selector = Method_Selector(options=[a for a in Arbitration], caption="Arbitration Method")
 arbitration_type = arbitration_selector.get() # get the user's selection 
 
 
-dot = Dot_Simulator(inference_type=inference_type, assistance_type=assistance_type, arbitration_type=arbitration_type)
+# dot = Dot_Simulator(inference_type=inference_type, assistance_type=assistance_type, arbitration_type=arbitration_type)
+dot = Dot_Simulator(inference_type=inference_type, arbitration_type=arbitration_type)
 dot.run_shared()
 

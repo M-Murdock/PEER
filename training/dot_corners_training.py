@@ -4,6 +4,8 @@ import sys
 import numpy as np # For the Q-table and calculations
 import math # For distance calculations
 import random
+import policy_drawing_correspondences
+from os.path import join
 
 # --- Constants ---
 # Screen dimensions
@@ -20,25 +22,30 @@ RED = (255, 0, 0) # For the dot (to see it better)
 DOT_RADIUS = 8
 DOT_SPEED = 5 # This is now the agent's action magnitude
 
+SAVE_DIR = "./trained_policies/"
 # --- Target Square Definition ---
 # Define the corners of the square path
 # --- Top Left ---
-# TOP_LEFT_X = 14
-# TOP_LEFT_Y = 12
-# Q_TABLE_FILE = "./trained_policies/q_table_topleft.npy"
+TOP_LEFT_X = 14
+TOP_LEFT_Y = 12
+FILE_NAME = "q_table_topleft.npy"
 # --- Top Right ---
 # TOP_LEFT_X = 559
 # TOP_LEFT_Y = 12
-# Q_TABLE_FILE = "./trained_policies/q_table_topright.npy"
+# FILE_NAME = "q_table_topright.npy"
 # --- Bottom Right ---
 # TOP_LEFT_X = 559
 # TOP_LEFT_Y = 559
-# Q_TABLE_FILE = "./trained_policies/q_table_bottomright.npy"
+# FILE_NAME = "q_table_bottomright.npy"
 # --- Bottom Left ---
-TOP_LEFT_X = 12
-TOP_LEFT_Y = 559
-Q_TABLE_FILE = "./trained_policies/q_table_bottomleft.npy"
+# TOP_LEFT_X = 12
+# TOP_LEFT_Y = 559
+# FILE_NAME = "q_table_bottomleft.npy"
 
+# save the info for visualizing
+policy_drawing_correspondences.save_policy_info(FILE_NAME, {"type":"point", "x":TOP_LEFT_X, "y":TOP_LEFT_Y, "r":None})
+
+Q_TABLE_FILE = join(SAVE_DIR, FILE_NAME)
 
 # --- Q-Learning Parameters ---
 # Discretize the state space
