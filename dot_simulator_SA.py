@@ -78,6 +78,8 @@ class Dot_Simulator:
         self.POLICY_DIR = policy_dir
         self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]]
         
+        self.prob = np.zeros(len(self.POLICIES))
+        
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
         state_x = int(max(0, min(x, self.SCREEN_WIDTH - 1)) // self.GRID_SIZE)
@@ -105,18 +107,18 @@ class Dot_Simulator:
         self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
 
             
-    def draw_probability_bars(self, probs):
+    def draw_probability_bars(self):
         """
         Draws a horizontal bar chart for the goal probabilities.
         """
-        num_policies = len(probs)
+        num_policies = len(self.prob)
         bar_width = self.SCREEN_WIDTH // num_policies
         max_bar_height = self.TOP_PANEL_HEIGHT - 25  # leave space for labels
 
         # Background for the top panel
         pygame.draw.rect(self.screen, (30, 30, 30), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
     
-        for i, p in enumerate(probs):
+        for i, p in enumerate(self.prob):
             # Bar dimensions
             height = int(max_bar_height * float(p))
             x = i * bar_width
@@ -135,13 +137,12 @@ class Dot_Simulator:
             self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
 
 
-    def redraw_screen(self, probs=None):
+    def redraw_screen(self):
         # Clear entire screen
         self.screen.fill(self.BLACK)
 
         # 1. --- Draw top panel probability bars ---
-        if isinstance(probs, np.ndarray):
-            self.draw_probability_bars(probs)
+        self.draw_probability_bars()
 
         # 2. --- Draw the dot in the lower gameplay region ---
         dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
@@ -204,8 +205,9 @@ class Dot_Simulator:
 
             # Boundary check to keep the dot on the screen
             self.ensure_within_boundaries()
-            # Redraw the dot in its new position
-            self.redraw_screen(probs=self.prob)
+            # Redraw the dot in its new position and display probabilities
+            print(self.prob)
+            self.redraw_screen()
             
     # compute an action which blends u and a*
     def blend(self, u, a):
@@ -213,6 +215,7 @@ class Dot_Simulator:
         u = self.index_to_tuple(u)
         a = self.index_to_tuple(a)
         
+        # ---------------------------------
         # linear arbitration
         if self.ARBITRATION_TYPE is Arbitration.LINEAR: 
             blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
@@ -222,27 +225,27 @@ class Dot_Simulator:
                 return (0,0)
             return (blended[0]/mag, blended[1]/mag)
         
+        # ---------------------------------
         # probabilistic arbitration
         elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
             self.robot_confidence = max(self.prob)
-
             p_robot = float(self.robot_confidence)
-
             # Probabilistic mixture
             blended = (
                 p_robot * a[0] + (1 - p_robot) * u[0],
                 p_robot * a[1] + (1 - p_robot) * u[1]
             )
-
             # Normalize
             mag = np.sqrt(blended[0]**2 + blended[1]**2)
             if mag == 0:
                 return (0, 0)
             return (blended[0]/mag, blended[1]/mag)
         
+        # ---------------------------------
         # no blending (i.e. don't follow user input at all)
         elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT:
             return a
+        # ---------------------------------
 
 
 # -------------------------------------------------------------------------------------------------------------------
