@@ -107,49 +107,117 @@ class Dot_Simulator:
         self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
 
             
+    # def draw_probability_bars(self):
+    #     """
+    #     Draws a horizontal bar chart for the goal probabilities.
+    #     """
+    #     num_policies = len(self.prob)
+    #     bar_width = self.SCREEN_WIDTH // num_policies
+    #     max_bar_height = self.TOP_PANEL_HEIGHT - 25  # leave space for labels
+
+    #     # Background for the top panel
+    #     pygame.draw.rect(self.screen, (30, 30, 30), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
+    
+    #     for i, p in enumerate(self.prob):
+    #         # Bar dimensions
+    #         height = int(max_bar_height * float(p))
+    #         x = i * bar_width
+    #         y = self.TOP_PANEL_HEIGHT - height
+
+    #         pygame.draw.rect(
+    #         self.screen, 
+    #         self.WHITE,
+    #         pygame.Rect(x + 3, y, bar_width - 6, height)
+    #         )
+            
+
+    #         # Policy label + probability text
+    #         label = f"{i}: {p*100:.2f}"
+    #         text_surface, _ = self.font.render(label, self.BLACK)
+    #         self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
+
+
+    # def redraw_screen(self):
+    #     # Clear entire screen
+    #     self.screen.fill(self.BLACK)
+
+    #     # 1. --- Draw top panel probability bars ---
+    #     self.draw_probability_bars()
+
+    #     # 2. --- Draw the dot in the lower gameplay region ---
+    #     dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
+    #     pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
+
+    #     pygame.display.flip()
+    #     self.clock.tick(60)
     def draw_probability_bars(self):
         """
-        Draws a horizontal bar chart for the goal probabilities.
+        Draws a horizontal bar chart for the goal probabilities in the top panel.
         """
         num_policies = len(self.prob)
         bar_width = self.SCREEN_WIDTH // num_policies
-        max_bar_height = self.TOP_PANEL_HEIGHT - 25  # leave space for labels
+        max_bar_height = self.TOP_PANEL_HEIGHT - 30  # space for labels
 
-        # Background for the top panel
-        pygame.draw.rect(self.screen, (30, 30, 30), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
-    
-        for i, p in enumerate(self.prob):
-            # Bar dimensions
-            height = int(max_bar_height * float(p))
-            x = i * bar_width
-            y = self.TOP_PANEL_HEIGHT - height
-
-            pygame.draw.rect(
+        # --- Distinct background for the top panel ---
+        pygame.draw.rect(
             self.screen, 
-            self.WHITE,
-            pygame.Rect(x + 3, y, bar_width - 6, height)
-            )
-            
+            (25, 25, 25), 
+            pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT)
+        )
 
-            # Policy label + probability text
-            label = f"{i}: {p:.2f}"
+        # --- Draw a separator line to clearly divide top panel from gameplay ---
+        pygame.draw.line(
+            self.screen,
+            (180, 180, 180),
+            (0, self.TOP_PANEL_HEIGHT - 2),
+            (self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT - 2),
+            3
+        )
+
+        for i, p in enumerate(self.prob):
+            # Bar geometry
+            x = i * bar_width
+            bar_x = x + 8
+            bar_w = bar_width - 16
+
+            filled_height = int(max_bar_height * float(p))
+            empty_height = max_bar_height - filled_height
+            bar_bottom_y = self.TOP_PANEL_HEIGHT - 5
+
+            # --- Background track (for contrast) ---
+            pygame.draw.rect(
+                self.screen,
+                (80, 80, 80),
+                pygame.Rect(bar_x, bar_bottom_y - max_bar_height, bar_w, max_bar_height)
+            )
+
+            # --- Filled probability bar ---
+            pygame.draw.rect(
+                self.screen,
+                self.WHITE,
+                pygame.Rect(bar_x, bar_bottom_y - filled_height, bar_w, filled_height)
+            )
+
+            # --- Policy label and percentage ---
+            label = f"{i}: {p*100:.1f}%"
             text_surface, _ = self.font.render(label, self.WHITE)
-            self.screen.blit(text_surface, (x + 5, max_bar_height + 5))
+            self.screen.blit(text_surface, (bar_x, 5))
 
 
     def redraw_screen(self):
-        # Clear entire screen
-        self.screen.fill(self.BLACK)
+        # Fill bottom (gameplay region) with a different background for clear separation
+        self.screen.fill((0, 0, 0))
 
-        # 1. --- Draw top panel probability bars ---
+        # 1. Top panel
         self.draw_probability_bars()
 
-        # 2. --- Draw the dot in the lower gameplay region ---
+        # 2. Gameplay area (below the panel)
         dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
         pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
 
         pygame.display.flip()
         self.clock.tick(60)
+
 
             
             
