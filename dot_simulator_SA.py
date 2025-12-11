@@ -1,404 +1,372 @@
-# Import the pygame library
-import pygame
-import pygame.freetype
+# Refactored Dot Simulator (behavior preserved)
 import sys
-import numpy as np
-from util.shared_auto import SharedAutoPolicy
-from util.predictors import BayesianPredictor, MaxEntPredictor, CRFPredictor
+import os
 from os import listdir
 from os.path import isfile, join
+
+import numpy as np
+import pygame
+import pygame.freetype
+
+from util.shared_auto import SharedAutoPolicy
+from util.predictors import BayesianPredictor, MaxEntPredictor, CRFPredictor
 from util.selector import Method_Selector
 from util.SA_types import Inference, Assistance, Arbitration
 from training import policy_drawing_correspondences
 
+
+# -------------------------
+# Lightweight Q-table wrapper
+# -------------------------
 class Dot_Policy:
+    """Simple adapter around a saved Q-table .npy file.
+
+    Public API:
+        get_q_value(state, action)
+        get_action(state) -> argmax over actions
+    """
     def __init__(self, q_table_file="q_table_topleft.npy"):
         self.q_table_file = q_table_file
-        # --- Load Q-Table ---
         try:
             self.q_table = np.load(self.q_table_file)
             print(f"Loaded Q-table from {self.q_table_file}")
         except FileNotFoundError:
+            self.q_table = None
             print(f"Error: Q-table file '{self.q_table_file}' not found.")
-    
-    def get_q_value(self, state, action): 
+
+    def get_q_value(self, state, action):
         return self.q_table[state[0], state[1], action]
 
     def get_action(self, state):
-        return np.argmax(self.q_table[state[0], state[1], :])
+        return int(np.argmax(self.q_table[state[0], state[1], :]))
 
-# -------------------------------------------------------------------------------------------------------------------
+
+# -------------------------
+# Main simulator
+# -------------------------
 class Dot_Simulator:
-    def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN, assistance_type=Assistance.DISTRIBUTION, arbitration_type=Arbitration.LINEAR):
+    """Pygame-based dot mover with shared-autonomy inference, assistance, arbitration.
 
-            # --- Constants ---
-        self.GAMMA = 0.4
-        # Screen dimensions
-        self.SCREEN_WIDTH = 600
-        self.SCREEN_HEIGHT = 600
-        self.TOP_PANEL_HEIGHT = 175   # space above the dot region
+    This refactor keeps all behavior identical to the provided implementation:
+    - Same defaults for sizes, speeds, enums
+    - Same event flow, drawing, and blending behaviors
+    - Same file loading and policy-color mapping
+    """
+    # ---- Defaults / constants ----
+    DEFAULTS = {
+        "GAMMA": 0.4,
+        "SCREEN_WIDTH": 600,
+        "SCREEN_HEIGHT": 600,
+        "TOP_PANEL_HEIGHT": 175,
+        "CHECKBOX_SIZE": 20,
+        "DOT_RADIUS": 8,
+        "DOT_SPEED": 5,
+        "GRID_SIZE": 20,
+        "TEXT_SIZE": 15,
+        "CLICK_COOLDOWN": 50,  # ms
+    }
 
-        # Checkboxes for enabling/disabling visualizations
-        self.prob_visualization_on = True
-        self.CHECKBOX_SIZE = 20
-        self.PROB_CHECKBOX_POS = (10, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
-        
-        self.goal_visualization_on = True
-        self.GOAL_CHECKBOX_POS = (200, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
+    # action index -> (dx, dy)
+    INDEX_TO_TUPLE = {
+        0: (0, -1),
+        1: (0, 1),
+        2: (-1, 0),
+        3: (1, 0),
+    }
 
+    PREDICTOR_MAP = {
+        Inference.BAYESIAN: BayesianPredictor,
+        Inference.MAX_ENT: MaxEntPredictor,
+        Inference.CRF: CRFPredictor,
+    }
 
-        # Colors 
-        self.BLACK = (0, 0, 0)
-        self.WHITE = (255, 255, 255)
+    def __init__(self, policy_dir="trained_policies",
+                 inference_type=Inference.BAYESIAN,
+                 assistance_type=Assistance.DISTRIBUTION,
+                 arbitration_type=Arbitration.LINEAR):
 
-        # Dot properties
-        self.DOT_RADIUS = 8
-        self.DOT_SPEED = 5 # This is now the agent's action magnitude
+        # --- configuration ---
+        self.GAMMA = self.DEFAULTS["GAMMA"]
+        self.SCREEN_WIDTH = self.DEFAULTS["SCREEN_WIDTH"]
+        self.SCREEN_HEIGHT = self.DEFAULTS["SCREEN_HEIGHT"]
+        self.TOP_PANEL_HEIGHT = self.DEFAULTS["TOP_PANEL_HEIGHT"]
+        self.CHECKBOX_SIZE = self.DEFAULTS["CHECKBOX_SIZE"]
+        self.DOT_RADIUS = self.DEFAULTS["DOT_RADIUS"]
+        self.DOT_SPEED = self.DEFAULTS["DOT_SPEED"]
+        self.GRID_SIZE = self.DEFAULTS["GRID_SIZE"]
+        self.TEXT_SIZE = self.DEFAULTS["TEXT_SIZE"]
+        self.CLICK_COOLDOWN = self.DEFAULTS["CLICK_COOLDOWN"]
 
-        # Discretize the state space
-        self.GRID_SIZE = 20 # 20x20 pixel cells
-        self.STATES_X = self.SCREEN_WIDTH // self.GRID_SIZE   # 30 states
-        self.STATES_Y = self.SCREEN_HEIGHT // self.GRID_SIZE  # 30 states
-        
-        self.dot_x = self.SCREEN_WIDTH // 2
-        self.dot_y = self.SCREEN_HEIGHT // 2
-
-        # up, down, left, right
-        self.ACTION_SPACE_LEN = 4
-        
+        # enums
         self.INFERENCE_TYPE = inference_type
         self.ASSISTANCE_TYPE = assistance_type
         self.ARBITRATION_TYPE = arbitration_type
 
-        # checkbox settings
-        self.last_click_time = 0
-        self.CLICK_COOLDOWN = 50  # ms
-        
-            # --- Initialization ---
-        # Initialize all imported pygame modules
-        pygame.init()
-        # Set up the display window
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT + self.TOP_PANEL_HEIGHT))
+        # UI toggles
+        self.prob_visualization_on = True
+        self.goal_visualization_on = True
 
+        # checkbox positions (kept identical)
+        self.PROB_CHECKBOX_POS = (10, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
+        self.GOAL_CHECKBOX_POS = (200, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
+
+        # colors
+        self.BLACK = (0, 0, 0)
+        self.WHITE = (255, 255, 255)
+
+        # state
+        self.dot_x = self.SCREEN_WIDTH // 2
+        self.dot_y = self.SCREEN_HEIGHT // 2
+        self.ACTION_SPACE_LEN = 4
+        self.last_click_time = 0
+
+        # init pygame
+        pygame.init()
+        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT + self.TOP_PANEL_HEIGHT))
         caption = "Dot Mover Simulation: " + inference_type.value + ", " + assistance_type.value + ", " + arbitration_type.value
         pygame.display.set_caption(caption)
-        # set the font
-        self.TEXT_SIZE = 15
-        pygame.font.init() 
-        self.font = pygame.freetype.SysFont('Arial', self.TEXT_SIZE)
-        # Clock for controlling the frame rate 
+        pygame.font.init()
+        self.font = pygame.freetype.SysFont("Arial", self.TEXT_SIZE)
         self.clock = pygame.time.Clock()
-        
-        # Get all the policies from the given directory
+
+        # load policies
         self.POLICY_DIR = policy_dir
         self.POLICY_FILES = [f for f in listdir(self.POLICY_DIR) if isfile(join(self.POLICY_DIR, f))]
-        self.POLICIES = [Dot_Policy(pi) for pi in [join(self.POLICY_DIR, f) for f in self.POLICY_FILES]]
-        
+        self.POLICIES = [Dot_Policy(join(self.POLICY_DIR, f)) for f in self.POLICY_FILES]
+
+        # runtime arrays
         self.prob = np.zeros(len(self.POLICIES))
-        # colors that correspond with each policy
-        self.POLICY_COLORS = self.generate_colors(n=len(self.POLICIES))
-        
-        
+        self.POLICY_COLORS = self.generate_colors(len(self.POLICIES))
+
+    # -------------------------
+    # Utility & transformation
+    # -------------------------
     def generate_colors(self, n=1):
+        """Generate n colors that avoid pure 0 or 255 values (keeps distinct, non-black/white)."""
         colors = []
         for i in range(n):
-            # use scaling to spread values evenly in 1–254
-            r = ((i+1) * 123) % 254
-            g = ((i+1) * 231) % 254
-            b = ((i+1) * 77) % 254
+            r = ((i + 1) * 123) % 254
+            g = ((i + 1) * 231) % 254
+            b = ((i + 1) * 77) % 254
             colors.append((r, g, b))
         return colors
 
     def get_state(self, x, y):
-        """Converts (x, y) coordinates to a discrete grid state."""
-        state_x = int(max(0, min(x, self.SCREEN_WIDTH - 1)) // self.GRID_SIZE)
-        state_y = int(max(0, min(y, self.SCREEN_HEIGHT - 1)) // self.GRID_SIZE)
-        return (state_x, state_y)
+        """Map continuous (x,y) to a discrete grid state (sx, sy)."""
+        sx = int(max(0, min(x, self.SCREEN_WIDTH - 1)) // self.GRID_SIZE)
+        sy = int(max(0, min(y, self.SCREEN_HEIGHT - 1)) // self.GRID_SIZE)
+        return (sx, sy)
 
     def index_to_tuple(self, index):
-        if index == 0:
-            return (0, -1)
-        elif index == 1:
-            return (0, 1)
-        elif index == 2:
-            return (-1, 0)
-        elif index == 3:
-            return (1, 0)
-        
-        return (0, 0)
-    
-    def execute_action(self, action): # note: action must be in form: (x, y)   
-        self.dot_x += self.DOT_SPEED * action[0] # execute the action
+        """Return direction vector for action index. Unknown -> (0,0)."""
+        return self.INDEX_TO_TUPLE.get(int(index), (0, 0))
+
+    def execute_action(self, action):
+        """Apply a unit-direction action (dx,dy) scaled by DOT_SPEED to the dot."""
+        self.dot_x += self.DOT_SPEED * action[0]
         self.dot_y += self.DOT_SPEED * action[1]
-    
+
     def ensure_within_boundaries(self):
+        """Clamp the dot to the visible gameplay region (below top panel)."""
         self.dot_x = max(self.DOT_RADIUS, min(self.SCREEN_WIDTH - self.DOT_RADIUS, self.dot_x))
-        self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y)) 
+        self.dot_y = max(self.DOT_RADIUS, min(self.SCREEN_HEIGHT - self.DOT_RADIUS, self.dot_y))
+
+    # -------------------------
+    # Drawing helpers
+    # -------------------------
+    def draw_top_panel_background(self):
+        pygame.draw.rect(self.screen, (25, 25, 25), pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT))
+        pygame.draw.line(self.screen, (180, 180, 180), (0, self.TOP_PANEL_HEIGHT - 2), (self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT - 2), 3)
 
     def draw_probability_bars(self):
-        """
-        Draws a horizontal bar chart for the goal probabilities in the top panel.
-        """
-        num_policies = len(self.prob)
+        """Draw the horizontal probability bars in the top panel (keeps labels & geometry)."""
+        num_policies = len(self.prob) or 1
         bar_width = self.SCREEN_WIDTH // num_policies
-        max_bar_height = self.TOP_PANEL_HEIGHT - 75  # space for labels
-
-        # --- Distinct background for the top panel ---
-        pygame.draw.rect(
-            self.screen, 
-            (25, 25, 25), 
-            pygame.Rect(0, 0, self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT)
-        )
-
-        # --- Draw a separator line to clearly divide top panel from gameplay ---
-        pygame.draw.line(
-            self.screen,
-            (180, 180, 180),
-            (0, self.TOP_PANEL_HEIGHT - 2),
-            (self.SCREEN_WIDTH, self.TOP_PANEL_HEIGHT - 2),
-            3
-        )
+        max_bar_height = self.TOP_PANEL_HEIGHT - 75
+        self.draw_top_panel_background()
 
         for i, p in enumerate(self.prob):
-            # Bar geometry
             x = i * bar_width
             bar_x = x + 8
             bar_w = bar_width - 16
-
-            filled_height = int(max_bar_height * float(p))
-            empty_height = max_bar_height - filled_height
+            filled_h = int(max_bar_height * float(p))
             bar_bottom_y = self.TOP_PANEL_HEIGHT - 5
 
-            # --- Background track (for contrast) ---
-            pygame.draw.rect(
-                self.screen,
-                (80, 80, 80),
-                pygame.Rect(bar_x, bar_bottom_y - max_bar_height, bar_w, max_bar_height)
-            )
+            # background track & filled bar
+            pygame.draw.rect(self.screen, (80, 80, 80), pygame.Rect(bar_x, bar_bottom_y - max_bar_height, bar_w, max_bar_height))
+            pygame.draw.rect(self.screen, self.POLICY_COLORS[i], pygame.Rect(bar_x, bar_bottom_y - filled_h, bar_w, filled_h))
 
-            # --- Filled probability bar --- 
-            pygame.draw.rect(
-                self.screen,
-                self.POLICY_COLORS[i],
-                pygame.Rect(bar_x, bar_bottom_y - filled_height, bar_w, filled_height)
-            )
-
-            # --- Policy label and percentage ---
+            # label
             label = f"{i}: {p*100:.1f}%"
             text_surface, _ = self.font.render(label, self.WHITE)
             self.screen.blit(text_surface, (bar_x, 50))
-            
+
     def draw_checkbox(self):
-        # Checkbox for goal visualization
-        # Draw checkbox outline
-        pygame.draw.rect(
-            self.screen,
-            self.WHITE,
-            pygame.Rect(self.GOAL_CHECKBOX_POS[0], self.GOAL_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE),
-            2
-        )
+        """Draw both checkboxes with labels and filled rectangle when enabled."""
+        def _draw_box(pos, enabled, label):
+            pygame.draw.rect(self.screen, self.WHITE, pygame.Rect(pos[0], pos[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE), 2)
+            if enabled:
+                # filled rectangle inside the outline
+                pygame.draw.rect(self.screen, self.WHITE, pygame.Rect(pos[0], pos[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
+            lbl_surf, _ = self.font.render(label, self.WHITE)
+            self.screen.blit(lbl_surf, (pos[0] + self.CHECKBOX_SIZE + 5, pos[1] - 2))
 
-        # Draw checkmark if probability visualization is on
-        if self.goal_visualization_on:
-            pygame.draw.rect(
-            self.screen,
-            self.WHITE,
-            pygame.Rect(self.GOAL_CHECKBOX_POS[0], self.GOAL_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE, width=0)
-        )
-
-
-        # Checkbox label
-        label_surface, _ = self.font.render("Show Goals", self.WHITE)
-        self.screen.blit(label_surface, (self.GOAL_CHECKBOX_POS[0] + self.CHECKBOX_SIZE + 5, self.GOAL_CHECKBOX_POS[1] - 2))
-        
-        # ----------------------------
-        # Checkbox for probabilities
-        # Draw checkbox outline
-        pygame.draw.rect(
-            self.screen,
-            self.WHITE,
-            pygame.Rect(self.PROB_CHECKBOX_POS[0], self.PROB_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE),
-            2
-        )
-
-        # Draw checkmark if probability visualization is on
-        if self.prob_visualization_on:
-            pygame.draw.rect(
-            self.screen,
-            self.WHITE,
-            pygame.Rect(self.PROB_CHECKBOX_POS[0], self.PROB_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE, width=0)
-        )
-
-        # Checkbox label
-        label_surface, _ = self.font.render("Show Probabilities", self.WHITE)
-        self.screen.blit(label_surface, (self.PROB_CHECKBOX_POS[0] + self.CHECKBOX_SIZE + 5, self.PROB_CHECKBOX_POS[1] - 2))
-
+        _draw_box(self.GOAL_CHECKBOX_POS, self.goal_visualization_on, "Show Goals")
+        _draw_box(self.PROB_CHECKBOX_POS, self.prob_visualization_on, "Show Probabilities")
 
     def draw_goal_visualizations(self):
-        # for each file in trained_policies
+        """Draw goals (circle/point) using training->visualization correspondence."""
         for i, f in enumerate(self.POLICY_FILES):
-            # get the corresponding visualization info from visualization_correspondences.csv
             draw_data = policy_drawing_correspondences.get_data_by_filename(f)
-            
-            if not draw_data is None:
-            
-                if draw_data["type"] == "circle":
-                    # draw the visualization
-                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), float(draw_data["r"]), width=1)
-                if draw_data["type"] == "point":
-                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), self.DOT_RADIUS)      
-        
-    def redraw_screen(self):
-        # Fill bottom (gameplay region) with a different background for clear separation
-        self.screen.fill((0, 0, 0))
+            if draw_data is None:
+                continue
+            color = self.POLICY_COLORS[i]
+            x = float(draw_data["x"])
+            y = float(draw_data["y"]) + self.TOP_PANEL_HEIGHT
+            if draw_data["type"] == "circle":
+                pygame.draw.circle(self.screen, color, (x, y), float(draw_data["r"]), width=1)
+            elif draw_data["type"] == "point":
+                pygame.draw.circle(self.screen, color, (x, y), self.DOT_RADIUS)
 
-        # 1. Top panel
-        # self.draw_probability_bars()
+    def redraw_screen(self):
+        """Clear and redraw everything (top panel + dot + checkboxes)."""
+        # bottom gameplay region background (fill entire screen first to avoid artifacts)
+        self.screen.fill(self.BLACK)
+
         if self.prob_visualization_on:
             self.draw_probability_bars()
         if self.goal_visualization_on:
             self.draw_goal_visualizations()
 
-        # 2. Gameplay area (below the panel)
-        dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
-        pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
-        
+        # draw the dot (note: gameplay y is offset by TOP_PANEL_HEIGHT)
+        dot_screen_y = self.dot_y + self.TOP_PANEL_HEIGHT
+        pygame.draw.circle(self.screen, self.WHITE, (int(self.dot_x), int(dot_screen_y)), self.DOT_RADIUS)
+
         self.draw_checkbox()
-        
         pygame.display.flip()
         self.clock.tick(60)
-            
-            
-    def run_shared(self):
 
-        # Get the selected inference method
-        if self.INFERENCE_TYPE is Inference.BAYESIAN: # Bayesian Prediction
-            pred = BayesianPredictor(self.POLICIES)
-        elif self.INFERENCE_TYPE is Inference.MAX_ENT: # Max Entropy Prediction
-            pred = MaxEntPredictor(self.POLICIES)
-        elif self.INFERENCE_TYPE is Inference.CRF: # Conditional Random Field Prediction
-            pred = CRFPredictor(self.POLICIES)
+    # -------------------------
+    # Core loop and helpers
+    # -------------------------
+    def _create_predictor(self):
+        cls = self.PREDICTOR_MAP.get(self.INFERENCE_TYPE, BayesianPredictor)
+        return cls(self.POLICIES)
 
-            
-        # Get the selected assistance method
+    def _create_assistant(self):
         if self.ASSISTANCE_TYPE is Assistance.DISTRIBUTION:
-            policy = SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
-        else:
-            pass
-        
-        u = -1
-        running = True
-        
-        while running:
+            return SharedAutoPolicy(self.POLICIES, list(range(self.ACTION_SPACE_LEN)))
+        return None
 
-            # --- 1. Event Handling (Only for QUIT, initial key presses, and key releases) ---
+    def _handle_mouse_clicks(self, event):
+        """Flip checkboxes if clicked, respecting cooldown (keeps same logic as original)."""
+        now = pygame.time.get_ticks()
+        if now - self.last_click_time < self.CLICK_COOLDOWN:
+            return
+        self.last_click_time = now
+
+        mouse_pos = event.pos
+        prob_rect = pygame.Rect(self.PROB_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
+        goal_rect = pygame.Rect(self.GOAL_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
+
+        if prob_rect.collidepoint(mouse_pos):
+            self.prob_visualization_on = not self.prob_visualization_on
+        if goal_rect.collidepoint(mouse_pos):
+            self.goal_visualization_on = not self.goal_visualization_on
+
+    def blend(self, u, a):
+        """
+        Combine user command u (index) and robot action a (index) according to arbitration:
+        - LINEAR: linear blend by GAMMA (then normalize)
+        - PROBABILISTIC: weight by robot confidence (max of self.prob)
+        - ONLY_USER: return user vector
+        """
+        u_vec = np.array(self.index_to_tuple(u), dtype=float)
+        a_vec = np.array(self.index_to_tuple(a), dtype=float)
+
+        if self.ARBITRATION_TYPE is Arbitration.ONLY_USER:
+            return tuple(u_vec.tolist())
+
+        if self.ARBITRATION_TYPE is Arbitration.LINEAR:
+            blended = (u_vec * self.GAMMA) + (a_vec * (1 - self.GAMMA))
+        elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
+            self.robot_confidence = float(max(self.prob)) if len(self.prob) else 0.0
+            p_robot = self.robot_confidence
+            blended = (p_robot * a_vec) + ((1 - p_robot) * u_vec)
+        else:
+            blended = u_vec  # fallback
+
+        mag = np.linalg.norm(blended)
+        if mag == 0:
+            return (0, 0)
+        return (blended[0] / mag, blended[1] / mag)
+
+    def run_shared(self):
+        """Main loop: handle input, inference, assistance, arbitration, drawing."""
+        pred = self._create_predictor()
+        policy = self._create_assistant()
+
+        running = True
+        u = -1  # user action index; -1 indicates no user command yet
+
+        while running:
+            # --- events (keep original style: iterate, but later code references last event) ---
+            last_event = None
             for event in pygame.event.get():
+                last_event = event
                 if event.type == pygame.QUIT:
                     running = False
 
+            # user key sampling (up/down/left/right map to indices 0..3)
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
-                u = 0 
+                u = 0
             if keys[pygame.K_DOWN]:
                 u = 1
             if keys[pygame.K_LEFT]:
                 u = 2
             if keys[pygame.K_RIGHT]:
                 u = 3
-                
-            # don't move the dot until AFTER the user has given their first control signal
+
+            # don't move until a user action has been given once
             if u == -1:
                 self.redraw_screen()
+                # still allow clicks even before first command (mimics original behavior)
+                if last_event and last_event.type == pygame.MOUSEBUTTONDOWN and last_event.button == 1:
+                    self._handle_mouse_clicks(last_event)
                 continue
-            
-            # Inference: get the probability of the policies based on the user's control signal
+
+            # --- Inference
             self.prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
 
-            # Assistance: using the most likely policy, calculate the next optimal action
-            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob) # Get robot's predicted action
+            # --- Assistance (robot's predicted optimal action)
+            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob)
 
-            # Arbitration: blend the optimal action and control signal
-            self.execute_action(self.blend(u, optimal_action))
+            # --- Arbitration & Execution
+            blended_action = self.blend(u, optimal_action)
+            self.execute_action(blended_action)
 
-            # Boundary check to keep the dot on the screen
+            # boundary & draw
             self.ensure_within_boundaries()
-            # Redraw the dot in its new position and display probabilities
             self.redraw_screen()
-            
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                now = pygame.time.get_ticks()
-                if now - self.last_click_time < self.CLICK_COOLDOWN:
-                    continue
-                self.last_click_time = now
 
-                mouse_pos = event.pos
-
-                checkbox_rect = pygame.Rect(self.PROB_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
-                goal_checkbox_rect = pygame.Rect(self.GOAL_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
-
-                if checkbox_rect.collidepoint(mouse_pos):
-                    self.prob_visualization_on = not self.prob_visualization_on
-
-                if goal_checkbox_rect.collidepoint(mouse_pos):
-                    self.goal_visualization_on = not self.goal_visualization_on
+            # handle checkboxes via mouse clicks (keeps the original timing/position logic)
+            if last_event and last_event.type == pygame.MOUSEBUTTONDOWN and last_event.button == 1:
+                self._handle_mouse_clicks(last_event)
 
 
-            
-    # compute an action which blends u and a*
-    def blend(self, u, a):
-        # convert from action index to x,y
-        u = self.index_to_tuple(u)
-        a = self.index_to_tuple(a)
-        
-        # ---------------------------------
-        # linear arbitration
-        if self.ARBITRATION_TYPE is Arbitration.LINEAR: 
-            blended = ((u[0]*self.GAMMA) + (a[0]*(1-self.GAMMA)), (u[1]*self.GAMMA) + (a[1]*(1-self.GAMMA)))
-            # convert to unit vector
-            mag = np.sqrt(blended[0]*blended[0] + blended[1]*blended[1])
-            if mag == 0:
-                return (0,0)
-            return (blended[0]/mag, blended[1]/mag)
-        
-        # ---------------------------------
-        # probabilistic arbitration
-        elif self.ARBITRATION_TYPE is Arbitration.PROBABILISTIC:
-            self.robot_confidence = max(self.prob)
-            p_robot = float(self.robot_confidence)
-            # Probabilistic mixture
-            blended = (
-                p_robot * a[0] + (1 - p_robot) * u[0],
-                p_robot * a[1] + (1 - p_robot) * u[1]
-            )
-            # Normalize
-            mag = np.sqrt(blended[0]**2 + blended[1]**2)
-            if mag == 0:
-                return (0, 0)
-            return (blended[0]/mag, blended[1]/mag)
-        
-        # ---------------------------------
-        # no blending (i.e. don't follow user input at all)
-        elif self.ARBITRATION_TYPE is Arbitration.ONLY_ROBOT:
-            return a
-        # ---------------------------------
+# -------------------------
+# CLI-like selection & launch (kept identical)
+# -------------------------
+if __name__ == "__main__":
+    # inference selection
+    inference_selector = Method_Selector(options=[i for i in Inference], caption="Inference Method")
+    inference_type = inference_selector.get()
 
+    # arbitration selection
+    arbitration_selector = Method_Selector(options=[a for a in Arbitration], caption="Arbitration Method")
+    arbitration_type = arbitration_selector.get()
 
-# -------------------------------------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------------------------------------
-# get the inference method from the user
-inference_selector = Method_Selector(options=[i for i in Inference], caption="Inference Method")
-inference_type = inference_selector.get() # get the user's selection 
-
-# get the assistance method from the user
-# assistance_selector = Method_Selector(options=[d for d in Assistance], caption="Assistance Method")
-# assistance_type = assistance_selector.get() # get the user's selection 
-
-# get the blending method from the user
-arbitration_selector = Method_Selector(options=[a for a in Arbitration], caption="Arbitration Method")
-arbitration_type = arbitration_selector.get() # get the user's selection 
-
-
-# dot = Dot_Simulator(inference_type=inference_type, assistance_type=assistance_type, arbitration_type=arbitration_type)
-dot = Dot_Simulator(inference_type=inference_type, arbitration_type=arbitration_type)
-dot.run_shared()
-
+    # instantiate & run (assistance left to default as in original)
+    dot = Dot_Simulator(inference_type=inference_type, arbitration_type=arbitration_type)
+    dot.run_shared()

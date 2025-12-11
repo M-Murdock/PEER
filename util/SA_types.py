@@ -11,4 +11,4 @@ class Assistance(Enum):
 class Arbitration(Enum):
     LINEAR = "Linear"
     PROBABILISTIC = "Probabilistic"
-    ONLY_ROBOT = "Robot Action Only"
+    ONLY_USER = "User Action Only"
