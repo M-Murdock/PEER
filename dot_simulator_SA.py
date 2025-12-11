@@ -307,50 +307,56 @@ class Dot_Simulator:
         policy = self._create_assistant()
 
         running = True
-        u = -1  # user action index; -1 indicates no user command yet
 
         while running:
-            # --- events (keep original style: iterate, but later code references last event) ---
+            # --- events ---
             last_event = None
             for event in pygame.event.get():
                 last_event = event
                 if event.type == pygame.QUIT:
                     running = False
 
-            # user key sampling (up/down/left/right map to indices 0..3)
+            # --- Check user action for THIS frame ---
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
                 u = 0
-            if keys[pygame.K_DOWN]:
+            elif keys[pygame.K_DOWN]:
                 u = 1
-            if keys[pygame.K_LEFT]:
+            elif keys[pygame.K_LEFT]:
                 u = 2
-            if keys[pygame.K_RIGHT]:
+            elif keys[pygame.K_RIGHT]:
                 u = 3
+            else:
+                u = -1   # no user input this frame
 
-            # don't move until a user action has been given once
+            # --- If no user action: robot does nothing ---
             if u == -1:
                 self.redraw_screen()
-                # still allow clicks even before first command (mimics original behavior)
+
+                # still allow checkbox clicks
                 if last_event and last_event.type == pygame.MOUSEBUTTONDOWN and last_event.button == 1:
                     self._handle_mouse_clicks(last_event)
+
                 continue
 
             # --- Inference
             self.prob = pred.update(self.get_state(self.dot_x, self.dot_y), u)
 
-            # --- Assistance (robot's predicted optimal action)
-            optimal_action = policy.get_action(self.get_state(self.dot_x, self.dot_y), self.prob)
+            # --- Assistance
+            optimal_action = policy.get_action(
+                self.get_state(self.dot_x, self.dot_y),
+                self.prob
+            )
 
             # --- Arbitration & Execution
             blended_action = self.blend(u, optimal_action)
             self.execute_action(blended_action)
 
-            # boundary & draw
+            # --- boundaries & draw ---
             self.ensure_within_boundaries()
             self.redraw_screen()
 
-            # handle checkboxes via mouse clicks (keeps the original timing/position logic)
+            # --- handle UI clicks ---
             if last_event and last_event.type == pygame.MOUSEBUTTONDOWN and last_event.button == 1:
                 self._handle_mouse_clicks(last_event)
 
