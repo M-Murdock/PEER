@@ -30,12 +30,22 @@ class Dot_Policy:
 # -------------------------------------------------------------------------------------------------------------------
 class Dot_Simulator:
     def __init__(self, policy_dir="trained_policies", inference_type=Inference.BAYESIAN, assistance_type=Assistance.DISTRIBUTION, arbitration_type=Arbitration.LINEAR):
+
             # --- Constants ---
         self.GAMMA = 0.4
         # Screen dimensions
         self.SCREEN_WIDTH = 600
         self.SCREEN_HEIGHT = 600
-        self.TOP_PANEL_HEIGHT = 120   # space above the dot region
+        self.TOP_PANEL_HEIGHT = 175   # space above the dot region
+
+        # Checkboxes for enabling/disabling visualizations
+        self.prob_visualization_on = True
+        self.CHECKBOX_SIZE = 20
+        self.PROB_CHECKBOX_POS = (10, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
+        
+        self.goal_visualization_on = True
+        self.GOAL_CHECKBOX_POS = (200, self.TOP_PANEL_HEIGHT - self.CHECKBOX_SIZE - 140)
+
 
         # Colors 
         self.BLACK = (0, 0, 0)
@@ -60,6 +70,10 @@ class Dot_Simulator:
         self.ASSISTANCE_TYPE = assistance_type
         self.ARBITRATION_TYPE = arbitration_type
 
+        # checkbox settings
+        self.last_click_time = 0
+        self.CLICK_COOLDOWN = 50  # ms
+        
             # --- Initialization ---
         # Initialize all imported pygame modules
         pygame.init()
@@ -84,6 +98,7 @@ class Dot_Simulator:
         # colors that correspond with each policy
         self.POLICY_COLORS = self.generate_colors(n=len(self.POLICIES))
         
+        
     def generate_colors(self, n=1):
         colors = []
         for i in range(n):
@@ -93,7 +108,6 @@ class Dot_Simulator:
             b = ((i+1) * 77) % 254
             colors.append((r, g, b))
         return colors
-
 
     def get_state(self, x, y):
         """Converts (x, y) coordinates to a discrete grid state."""
@@ -127,7 +141,7 @@ class Dot_Simulator:
         """
         num_policies = len(self.prob)
         bar_width = self.SCREEN_WIDTH // num_policies
-        max_bar_height = self.TOP_PANEL_HEIGHT - 30  # space for labels
+        max_bar_height = self.TOP_PANEL_HEIGHT - 75  # space for labels
 
         # --- Distinct background for the top panel ---
         pygame.draw.rect(
@@ -172,7 +186,53 @@ class Dot_Simulator:
             # --- Policy label and percentage ---
             label = f"{i}: {p*100:.1f}%"
             text_surface, _ = self.font.render(label, self.WHITE)
-            self.screen.blit(text_surface, (bar_x, 5))
+            self.screen.blit(text_surface, (bar_x, 50))
+            
+    def draw_checkbox(self):
+        # Checkbox for goal visualization
+        # Draw checkbox outline
+        pygame.draw.rect(
+            self.screen,
+            self.WHITE,
+            pygame.Rect(self.GOAL_CHECKBOX_POS[0], self.GOAL_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE),
+            2
+        )
+
+        # Draw checkmark if probability visualization is on
+        if self.goal_visualization_on:
+            pygame.draw.rect(
+            self.screen,
+            self.WHITE,
+            pygame.Rect(self.GOAL_CHECKBOX_POS[0], self.GOAL_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE, width=0)
+        )
+
+
+        # Checkbox label
+        label_surface, _ = self.font.render("Show Goals", self.WHITE)
+        self.screen.blit(label_surface, (self.GOAL_CHECKBOX_POS[0] + self.CHECKBOX_SIZE + 5, self.GOAL_CHECKBOX_POS[1] - 2))
+        
+        # ----------------------------
+        # Checkbox for probabilities
+        # Draw checkbox outline
+        pygame.draw.rect(
+            self.screen,
+            self.WHITE,
+            pygame.Rect(self.PROB_CHECKBOX_POS[0], self.PROB_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE),
+            2
+        )
+
+        # Draw checkmark if probability visualization is on
+        if self.prob_visualization_on:
+            pygame.draw.rect(
+            self.screen,
+            self.WHITE,
+            pygame.Rect(self.PROB_CHECKBOX_POS[0], self.PROB_CHECKBOX_POS[1], self.CHECKBOX_SIZE, self.CHECKBOX_SIZE, width=0)
+        )
+
+        # Checkbox label
+        label_surface, _ = self.font.render("Show Probabilities", self.WHITE)
+        self.screen.blit(label_surface, (self.PROB_CHECKBOX_POS[0] + self.CHECKBOX_SIZE + 5, self.PROB_CHECKBOX_POS[1] - 2))
+
 
     def draw_goal_visualizations(self):
         # for each file in trained_policies
@@ -186,27 +246,27 @@ class Dot_Simulator:
                     # draw the visualization
                     pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), float(draw_data["r"]), width=1)
                 if draw_data["type"] == "point":
-                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), self.DOT_RADIUS)
-            
-            
+                    pygame.draw.circle(self.screen, self.POLICY_COLORS[i], (float(draw_data["x"]), float(draw_data["y"])+self.TOP_PANEL_HEIGHT), self.DOT_RADIUS)      
         
     def redraw_screen(self):
         # Fill bottom (gameplay region) with a different background for clear separation
         self.screen.fill((0, 0, 0))
 
         # 1. Top panel
-        self.draw_probability_bars()
+        # self.draw_probability_bars()
+        if self.prob_visualization_on:
+            self.draw_probability_bars()
+        if self.goal_visualization_on:
+            self.draw_goal_visualizations()
 
         # 2. Gameplay area (below the panel)
         dot_y = self.dot_y + self.TOP_PANEL_HEIGHT
         pygame.draw.circle(self.screen, self.WHITE, (self.dot_x, dot_y), self.DOT_RADIUS)
         
-        self.draw_goal_visualizations()
-
+        self.draw_checkbox()
+        
         pygame.display.flip()
         self.clock.tick(60)
-
-
             
             
     def run_shared(self):
@@ -230,6 +290,7 @@ class Dot_Simulator:
         running = True
         
         while running:
+
             # --- 1. Event Handling (Only for QUIT, initial key presses, and key releases) ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -263,6 +324,25 @@ class Dot_Simulator:
             self.ensure_within_boundaries()
             # Redraw the dot in its new position and display probabilities
             self.redraw_screen()
+            
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                now = pygame.time.get_ticks()
+                if now - self.last_click_time < self.CLICK_COOLDOWN:
+                    continue
+                self.last_click_time = now
+
+                mouse_pos = event.pos
+
+                checkbox_rect = pygame.Rect(self.PROB_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
+                goal_checkbox_rect = pygame.Rect(self.GOAL_CHECKBOX_POS, (self.CHECKBOX_SIZE, self.CHECKBOX_SIZE))
+
+                if checkbox_rect.collidepoint(mouse_pos):
+                    self.prob_visualization_on = not self.prob_visualization_on
+
+                if goal_checkbox_rect.collidepoint(mouse_pos):
+                    self.goal_visualization_on = not self.goal_visualization_on
+
+
             
     # compute an action which blends u and a*
     def blend(self, u, a):
