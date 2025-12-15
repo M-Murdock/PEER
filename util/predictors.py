@@ -29,7 +29,6 @@ class BayesianPredictor:
         # return np.log(probs[user_action] + 1e-12)
         return np.log(probs[user_action] + 1e-8)
 
-    
     def update( 
             self,
             state,
@@ -105,21 +104,25 @@ class MaxEntPredictor:
         probs = np.exp(logits) / np.sum(np.exp(logits))
         return np.log(probs[user_action] + 1e-12)
 
-    def update(self, state, user_action):
+    def update(self, state, user_action, alpha=0.5):
         """
         Update the belief over policies using MaxEnt likelihood.
+        alpha: learning rate for smoothing the posterior
         """
         log_likes = np.zeros(self.N)
         for i, pi in enumerate(self.policies):
             log_likes[i] = self.log_likelihood(state, user_action, pi)
 
-        # log posterior update
-        self.log_post += log_likes
+        # Convert to probability
+        likes = np.exp(log_likes - np.max(log_likes))
+        likes /= np.sum(likes)
 
-        # normalize in log-space
-        max_logp = np.max(self.log_post)
-        post = np.exp(self.log_post - max_logp)
+        # Current posterior in probability space
+        post = np.exp(self.log_post - np.max(self.log_post))
         post /= np.sum(post)
+
+        # Exponentially weighted update
+        post = (1 - alpha) * post + alpha * likes
 
         # smoothing
         post = (1 - self.eps) * post + self.eps * (1.0 / self.N)
@@ -128,6 +131,7 @@ class MaxEntPredictor:
         self.log_post = np.log(post + 1e-12)
 
         return post
+
 
     def get_prob(self):
         max_logp = np.max(self.log_post)
