@@ -1,6 +1,7 @@
 import numpy as np
 
 class BayesianPredictor:
+    # def __init__(self, policies, action_space_size=4, prior=None, tau=0.8, eps=1e-3):
     def __init__(self, policies, action_space_size=4, prior=None, tau=0.8, eps=1e-3):
         self.policies = policies
         self.N = len(policies)
@@ -25,29 +26,53 @@ class BayesianPredictor:
         logits -= np.max(logits)
         probs = np.exp(logits) / np.sum(np.exp(logits))
         
-        return np.log(probs[user_action] + 1e-12)
+        # return np.log(probs[user_action] + 1e-12)
+        return np.log(probs[user_action] + 1e-8)
 
-    def update(self, state, user_action):
+    
+    def update( 
+            self,
+            state,
+            user_action,
+            alpha=0.05,        # forgetting / adaptation rate
+            p_switch=0.02,     # goal-switch prior
+            beta=1           # posterior temperature (>1 = smoother)
+        ):
+        """
+        Bayesian update with forgetting, goal persistence, and posterior smoothing.
+        """
+
+        # 1. Compute log-likelihoods
         log_likes = np.zeros(self.N)
-        
         for i, pi in enumerate(self.policies):
             log_likes[i] = self.log_likelihood(state, user_action, pi)
 
-        # log posterior update
-        self.log_post += log_likes
-        
-        # normalize in log-space
+        # 2. Exponential forgetting (key fix)
+        # Blends past belief with current evidence
+        self.log_post = (1 - alpha) * self.log_post + alpha * log_likes
+
+        # 3. Normalize in probability space
         max_logp = np.max(self.log_post)
         post = np.exp(self.log_post - max_logp)
         post /= np.sum(post)
 
-        # add smoothing (prevents zeros)
+        # 4. Goal-switch prior (intent persistence)
+        if p_switch > 0:
+            post = (1 - p_switch) * post + p_switch * (1.0 / self.N)
+
+        # 5. Posterior temperature (optional but useful)
+        if beta != 1.0:
+            post = post ** (1.0 / beta)
+            post /= np.sum(post)
+
+        # 6. Light smoothing (numerical safety only)
         post = (1 - self.eps) * post + self.eps * (1.0 / self.N)
 
-        # store back in log-space
+        # 7. Store back in log space
         self.log_post = np.log(post + 1e-12)
 
         return post
+
 
     def get_prob(self):
         max_logp = np.max(self.log_post)
