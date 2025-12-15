@@ -1,7 +1,7 @@
 import numpy as np
 
 class BayesianPredictor:
-    def __init__(self, policies, action_space_size=4, prior=None, tau=0.8, eps=0.2):
+    def __init__(self, policies, action_space_size=4, prior=None, tau=0.8, eps=1e-3):
         self.policies = policies
         self.N = len(policies)
         self.action_space_size = action_space_size
@@ -56,7 +56,7 @@ class BayesianPredictor:
 
 
 class MaxEntPredictor:
-    def __init__(self, policies, action_space_size=4, tau=0.8, eps=1e-3):
+    def __init__(self, policies, action_space_size=4, tau=0.8, eps=1e-2):
         """
         policies: list of policies to evaluate
         action_space_size: number of discrete actions

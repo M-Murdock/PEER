@@ -4,7 +4,7 @@ import numpy as np
 import math
 import random
 import policy_drawing_correspondences
-
+EQUIV_REWARD = 5 # make the rewards for circle policy similar to those for corners policy
 # --- Constants ---
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
@@ -17,7 +17,7 @@ DOT_SPEED = 5
 
 # --- Circle Constants ---
 CIRCLE_CENTER = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-CIRCLE_RADIUS = 200 
+CIRCLE_RADIUS = 80#200 
 
 Q_TABLE_FILE = "q_table_orbit.npy"
 
@@ -78,7 +78,7 @@ def get_reward(current_x, current_y, dx, dy):
     reward_spin = alignment * 50 
 
     # --- Total Reward ---
-    return reward_position + reward_spin
+    return (reward_position + reward_spin) * EQUIV_REWARD
 
 def choose_action(state, epsilon, q_table):
     if np.random.rand() < epsilon:
