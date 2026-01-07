@@ -139,26 +139,22 @@ class MaxEntPredictor:
         return post / np.sum(post)
 
 
-
-import numpy as np
-
-
 class CRFPredictor:
     """
     Linear-chain CRF predictor over policy hypotheses.
-    Designed to avoid action-lock and belief collapse.
+    Fixed version with proper temporal decay and adaptation.
     """
 
     def __init__(
         self,
         policies,
         action_space_size=4,
-        eps=0.1,
-        tau=3.0,
-        pairwise_weight=0.1,
-        max_log_like=5.0,
-        min_entropy=0.6,
-        memory_decay=0.7,
+        eps=0.01,
+        tau=0.8,
+        pairwise_weight=0.3,
+        alpha=0.05,
+        p_switch=0.02,
+        beta=1.0,
     ):
         self.policies = policies
         self.N = len(policies)
@@ -167,99 +163,95 @@ class CRFPredictor:
         self.eps = eps
         self.tau = tau
         self.pairwise_weight = pairwise_weight
-        self.max_log_like = max_log_like
-        self.min_entropy = min_entropy
-        self.memory_decay = memory_decay
+        self.alpha = alpha  # forgetting rate (like BayesianPredictor)
+        self.p_switch = p_switch  # goal-switch prior
+        self.beta = beta  # posterior temperature
 
         self.log_post = np.log(np.ones(self.N) / self.N + 1e-12)
         self.prev_action = None
 
-    # --------------------------------------------------
-    # CRF likelihood
-    # --------------------------------------------------
-
     def log_likelihood(self, state, user_action, policy):
+        """Compute log P(u | pi) with optional temporal context."""
         logits = np.zeros(self.action_space_size)
 
         for a in range(self.action_space_size):
+            # Unary potential from Q-values
             unary = self.unary_fn(policy, state, a)
 
+            # Pairwise potential (temporal smoothness)
             pair = 0.0
             if self.prev_action is not None:
                 pair = self.pairwise_fn(self.prev_action, a)
 
             logits[a] = unary + pair
 
+        # Softmax normalization
         logits -= np.max(logits)
         probs = np.exp(logits)
         probs /= np.sum(probs)
 
-        logp = np.log(probs[user_action] + 1e-12)
-
-        # CRITICAL: clip likelihood to prevent runaway certainty
-        return np.clip(logp, -self.max_log_like, self.max_log_like)
-
-    # --------------------------------------------------
-    # Update
-    # --------------------------------------------------
+        return np.log(probs[user_action] + 1e-12)
 
     def update(self, state, user_action):
+        """
+        Update belief with exponential forgetting and goal persistence.
+        Mirrors the stable update logic from BayesianPredictor.
+        """
+        # 1. Compute log-likelihoods for all policies
         log_likes = np.array([
             self.log_likelihood(state, user_action, pi)
             for pi in self.policies
         ])
 
-        self.log_post += log_likes
+        # 2. Exponential forgetting (prevents unbounded accumulation)
+        self.log_post = (1 - self.alpha) * self.log_post + self.alpha * log_likes
 
-        # normalize
+        # 3. Normalize in probability space
         max_log = np.max(self.log_post)
         post = np.exp(self.log_post - max_log)
         post /= np.sum(post)
 
-        # entropy floor (prevents belief lock)
-        entropy = -np.sum(post * np.log(post + 1e-12))
-        if entropy < self.min_entropy:
-            post = (1 - self.eps) * post + self.eps / self.N
+        # 4. Goal-switch prior (intent persistence)
+        if self.p_switch > 0:
+            post = (1 - self.p_switch) * post + self.p_switch * (1.0 / self.N)
 
+        # 5. Posterior temperature (optional smoothing)
+        if self.beta != 1.0:
+            post = post ** (1.0 / self.beta)
+            post /= np.sum(post)
+
+        # 6. Light smoothing (numerical safety)
+        post = (1 - self.eps) * post + self.eps * (1.0 / self.N)
+
+        # 7. Store back in log space
         self.log_post = np.log(post + 1e-12)
 
-        # deterministic CRF memory decay
-        if self.prev_action is None:
-            self.prev_action = user_action
-        else:
-            if np.random.rand() < self.memory_decay:
-                self.prev_action = user_action
-            else:
-                self.prev_action = None
+        # 8. Update temporal context
+        self.prev_action = user_action
 
         return post
 
-    # --------------------------------------------------
-    # Accessors
-    # --------------------------------------------------
-
     def get_prob(self):
+        """Return current posterior distribution."""
         max_log = np.max(self.log_post)
         post = np.exp(self.log_post - max_log)
         return post / np.sum(post)
 
     def reset(self):
+        """Reset belief and temporal context."""
         self.log_post = np.log(np.ones(self.N) / self.N + 1e-12)
         self.prev_action = None
 
-    # --------------------------------------------------
-    # Potentials
-    # --------------------------------------------------
-
     def unary_fn(self, policy, state, action):
+        """Unary potential from Q-values."""
         Q = policy.get_q_value(state, action)
         return Q / self.tau
 
     def pairwise_fn(self, prev_a, a):
         """
-        Encourage *change* rather than repetition.
-        This is the key difference.
+        Pairwise potential encouraging temporal smoothness.
+        Positive when action repeats (natural persistence).
         """
         if prev_a == a:
-            return -self.pairwise_weight
-        return self.pairwise_weight
+            return self.pairwise_weight
+        return 0.0

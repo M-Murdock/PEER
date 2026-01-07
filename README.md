@@ -36,7 +36,7 @@ black_box.run(render="human")
 - `env_id`: Any MuJoCo environment (see [available environments](https://gymnasium.farama.org/environments/mujoco/))
 - `start_pos`: Custom initial joint positions for evaluation
 - `timesteps`: Total training steps (default: 1000)
-
+---
 ### Shared Autonomy Simulator
 
 Run `dot_simulator_SA.py` to begin the interactive SA system:
