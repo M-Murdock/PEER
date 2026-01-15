@@ -29,7 +29,7 @@ GRID_SIZE = 20
 STATES_X = SCREEN_WIDTH // GRID_SIZE 
 STATES_Y = SCREEN_HEIGHT // GRID_SIZE 
 
-MODE = "run" 
+MODE = "train" 
 
 def get_state(x, y):
     state_x = int(max(0, min(x, SCREEN_WIDTH - 1)) // GRID_SIZE)
@@ -37,48 +37,77 @@ def get_state(x, y):
     return (state_x, state_y)
 
 def get_reward(current_x, current_y, dx, dy):
-    """
-    Combines two rewards:
-    1. POSITION: Penalty for being away from the ring radius.
-    2. MOTION: Reward for moving Counter-Clockwise (Tangent).
-    """
-    # --- 1. Position Component (Gravity) ---
-    # Vector from center to agent
     rel_x = current_x - CIRCLE_CENTER[0]
     rel_y = current_y - CIRCLE_CENTER[1]
-    
     dist_from_center = math.sqrt(rel_x**2 + rel_y**2)
-    
-    # Penalty is distance from the ideal radius
     dist_error = abs(dist_from_center - CIRCLE_RADIUS)
     
-    # We use a sharp penalty so it REALLY wants to stay on the line
-    reward_position = -dist_error 
-
-    # --- 2. Motion Component (Spin) ---
-    # Calculate the ideal Tangent Vector for Counter-Clockwise motion
-    # For screen coords (y is down): Tangent is (rel_y, -rel_x)
+    # EXPONENTIAL penalty - much better gradient
+    reward_position = -dist_error**2 / 100  # Square the error
+    
+    # Motion component
     tangent_x = rel_y
     tangent_y = -rel_x
     
-    # Normalize Tangent Vector (so magnitude doesn't affect reward, only direction)
     if dist_from_center == 0: 
-        tangent_len = 1 # Avoid div by zero
+        tangent_len = 1
     else:
         tangent_len = dist_from_center
         
     norm_tan_x = tangent_x / tangent_len
     norm_tan_y = tangent_y / tangent_len
-    
-    # Dot Product: (Move Vector) dot (Tangent Vector)
-    # This measures how much of our move is "aligned" with the tangent
     alignment = (dx * norm_tan_x) + (dy * norm_tan_y)
     
-    # Scale the spin reward (Strong enough to motivate, weak enough not to break gravity)
-    reward_spin = alignment * 50 
+    # Give POSITIVE reward when on the circle AND moving correctly
+    if dist_error < 10:  # Within 10 pixels of circle
+        reward_spin = alignment * 50
+    else:
+        reward_spin = alignment * 5  # Less important when far away
+    
+    return reward_position + reward_spin
+# def get_reward(current_x, current_y, dx, dy):
+#     """
+#     Combines two rewards:
+#     1. POSITION: Penalty for being away from the ring radius.
+#     2. MOTION: Reward for moving Counter-Clockwise (Tangent).
+#     """
+#     # --- 1. Position Component (Gravity) ---
+#     # Vector from center to agent
+#     rel_x = current_x - CIRCLE_CENTER[0]
+#     rel_y = current_y - CIRCLE_CENTER[1]
+    
+#     dist_from_center = math.sqrt(rel_x**2 + rel_y**2)
+    
+#     # Penalty is distance from the ideal radius
+#     dist_error = abs(dist_from_center - CIRCLE_RADIUS)
+    
+#     # We use a sharp penalty so it REALLY wants to stay on the line
+#     reward_position = -dist_error 
 
-    # --- Total Reward ---
-    return (reward_position + reward_spin) * EQUIV_REWARD
+#     # --- 2. Motion Component (Spin) ---
+#     # Calculate the ideal Tangent Vector for Counter-Clockwise motion
+#     # For screen coords (y is down): Tangent is (rel_y, -rel_x)
+#     tangent_x = rel_y
+#     tangent_y = -rel_x
+    
+#     # Normalize Tangent Vector (so magnitude doesn't affect reward, only direction)
+#     if dist_from_center == 0: 
+#         tangent_len = 1 # Avoid div by zero
+#     else:
+#         tangent_len = dist_from_center
+        
+#     norm_tan_x = tangent_x / tangent_len
+#     norm_tan_y = tangent_y / tangent_len
+    
+#     # Dot Product: (Move Vector) dot (Tangent Vector)
+#     # This measures how much of our move is "aligned" with the tangent
+#     alignment = (dx * norm_tan_x) + (dy * norm_tan_y)
+    
+#     # Scale the spin reward (Strong enough to motivate, weak enough not to break gravity)
+#     reward_spin = alignment * 50 
+
+#     # --- Total Reward ---
+#     return (reward_position + reward_spin) * EQUIV_REWARD
 
 def choose_action(state, epsilon, q_table):
     if np.random.rand() < epsilon:
@@ -100,7 +129,7 @@ def main():
     EPSILON = 1.0    
     EPSILON_DECAY = 0.9996 # Slow decay for complex movement
     MIN_EPSILON = 0.01
-    NUM_EPISODES = 80000   # Needs time to learn the flow
+    NUM_EPISODES = 200000   # Needs time to learn the flow
     
     if MODE == "run":
         try:

@@ -50,6 +50,22 @@ python dot_simulator_SA.py
 - Click checkboxes: Toggle probability/goal visualizations
 - GUI selection: Choose inference and arbitration methods
 
+#### Adding Visual Elements (backgrounds)
+
+The simulator supports displaying custom background images (e.g., ingredients for a baking task) at specified locations:
+
+1. Create a `background_images/` directory with your PNG files
+2. Create a `background_positions.csv` file specifying locations:
+
+```csv
+filename,x,y, xscale,yscale
+mixing_bowl.png,150,150, 100,100
+flour.png,450,150, 100,100
+sugar.png,300,300, 100,100
+```
+
+The simulator will automatically load and display these images at the specified coordinates (relative to the gameplay area).
+
 ## Project Structure
 
 ```
@@ -63,6 +79,13 @@ PEER/
 │   ├── q_table_topleft.npy
 │   ├── q_table_orbit.npy
 │   └── ...
+│
+├── background_images/             # Custom visual elements (optional)
+│   ├── background1.png
+│   ├── background2.png
+│   └── ...
+│
+├── background_positions.csv       # Position data for visual elements (optional)
 │
 ├── training/                # Policy training utilities
 │   └── policy_drawing_correspondences.py
@@ -154,6 +177,10 @@ Modify defaults in `Dot_Simulator.DEFAULTS`:
 - `GRID_SIZE`: Discretization resolution
 - `DOT_SPEED`: Movement speed per frame
 
+### Visual Customization
+- **Background Positions** and **Image Size**: Edit `background_positions.csv` to reposition and resize visual elements
+- **Image Directory**: Change `'background_images'` path in `load_background_images()` if using a different folder
+
 ## Adding New Policies
 
 To add new policies to the shared autonomy system:
@@ -187,4 +214,3 @@ Training agent: https://gymnasium.farama.org/introduction/train_agent/
 mujoco tutorial: https://github.com/tayalmanan28/MuJoCo-Tutorial/blob/main/tutorial/tutorial_2.ipynb 
 
 https://www.gymlibrary.dev/environments/mujoco/  -->
-
