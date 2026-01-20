@@ -139,6 +139,7 @@ class Dot_Simulator:
         self.prob = np.zeros(len(self.POLICIES))
         self.POLICY_COLORS = self.generate_colors(len(self.POLICIES))
 
+        self.AGENT_IMG_TRUE = False
         # load background images
         self.background_images = {}
         self.load_background_images()
@@ -153,7 +154,7 @@ class Dot_Simulator:
         """
         import csv
         
-        csv_file = 'background_positions.csv'
+        csv_file = 'info/background_positions.csv'
         try:
             with open(csv_file, 'r') as f:
                 reader = csv.reader(f)
@@ -164,11 +165,20 @@ class Dot_Simulator:
                         continue
                     
                     filename = row[0].strip()
-                    x = float(row[1])
-                    y = float(row[2])
                     
                     xscale = float(row[-2])
                     yscale = float(row[-1])
+                    
+                    if row[1] == "None": # check if the agent is represented by an image rather than a white dot
+                        print("Cursor Image!")
+                        self.AGENT_IMG_TRUE = True 
+                        print(filename)
+                        self.AGENT_IMG = pygame.image.load(os.path.join('background_images', filename)).convert_alpha()
+                        self.AGENT_IMG = pygame.transform.scale(self.AGENT_IMG, (xscale, yscale))
+                        continue
+                    
+                    x = float(row[1])
+                    y = float(row[2])
                     
                     try:
                         img = pygame.image.load(os.path.join('background_images', filename)).convert_alpha()
@@ -180,6 +190,10 @@ class Dot_Simulator:
         except FileNotFoundError:
             print(f"Warning: {csv_file} not found. No background images will be displayed.")
 
+    def draw_agent(self, x, y):
+        img_rect = self.AGENT_IMG.get_rect(center=(int(x), int(y + self.TOP_PANEL_HEIGHT)))
+        self.screen.blit(self.AGENT_IMG, img_rect)
+        
     def draw_backgrounds(self):
         """Draw all background images at their specified positions."""
         for filename, data in self.background_images.items():
@@ -293,7 +307,11 @@ class Dot_Simulator:
 
         # draw the dot (note: gameplay y is offset by TOP_PANEL_HEIGHT)
         dot_screen_y = self.dot_y + self.TOP_PANEL_HEIGHT
-        pygame.draw.circle(self.screen, self.WHITE, (int(self.dot_x), int(dot_screen_y)), self.DOT_RADIUS)
+        if self.AGENT_IMG_TRUE: # check whether we're representing agent with a white dot or an image (True=image, False=white dot)
+            # pygame.draw.circle(self.screen, self.WHITE, (int(self.dot_x), int(dot_screen_y)), self.DOT_RADIUS)
+            self.draw_agent(self.dot_x, self.dot_y)
+        else:
+            pygame.draw.circle(self.screen, self.WHITE, (int(self.dot_x), int(dot_screen_y)), self.DOT_RADIUS)
 
         self.draw_checkbox()
         pygame.display.flip()
