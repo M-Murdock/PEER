@@ -64,6 +64,11 @@ flour.png,450,150, 100,100
 sugar.png,300,300, 100,100
 ```
 
+You may also replace the user's cursor with an image. To do this, simply add add the following line to the csv, replacing the image name and scaling factors with your own values. (**NB**: The x and y values *must* be `None` and have no whitespaces between them): 
+```
+spoon.png,None,None, 90,90
+```
+
 The simulator will automatically load and display these images at the specified coordinates (relative to the gameplay area).
 
 ## Project Structure
