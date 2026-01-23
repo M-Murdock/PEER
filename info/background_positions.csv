@@ -3,5 +3,5 @@ egg.png,55,545, 150,150
 flour.png,545,545, 150,150
 milk.png,545,55, 150,150
 sugar.png,55,55, 150,150
-mixing_bowl.png, 300, 300, 200, 200
-spoon.png,None,None, 90,90
+mixing_bowl.png, 300, 305, 200, 200
+spoon.png,None,None, 80,80

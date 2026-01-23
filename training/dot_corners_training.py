@@ -26,17 +26,17 @@ SAVE_DIR = "./trained_policies/"
 # --- Target Square Definition ---
 # Define the corners of the square path
 # --- Top Left ---
-TOP_LEFT_X = 14
-TOP_LEFT_Y = 12
-FILE_NAME = "q_table_topleft.npy"
+# TOP_LEFT_X = 55
+# TOP_LEFT_Y = 55
+# FILE_NAME = "q_table_topleft.npy"
 # --- Top Right ---
 # TOP_LEFT_X = 559
 # TOP_LEFT_Y = 12
 # FILE_NAME = "q_table_topright.npy"
 # --- Bottom Right ---
-# TOP_LEFT_X = 559
-# TOP_LEFT_Y = 559
-# FILE_NAME = "q_table_bottomright.npy"
+TOP_LEFT_X = 545
+TOP_LEFT_Y = 545
+FILE_NAME = "q_table_bottomright.npy"
 # --- Bottom Left ---
 # TOP_LEFT_X = 12
 # TOP_LEFT_Y = 559
@@ -54,7 +54,7 @@ STATES_X = SCREEN_WIDTH // GRID_SIZE   # 30 states
 STATES_Y = SCREEN_HEIGHT // GRID_SIZE  # 30 states
 
 # --- NEW: Mode and File Constants ---
-MODE = "run"  # Change to "run" to execute the learned policy
+MODE = "train"  # Change to "run" to execute the learned policy
 # Q_TABLE_FILE = "q_table_topright.npy"
 
 
