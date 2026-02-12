@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Study</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .page {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .instructions {
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+
+        .instructions p {
+            margin-bottom: 15px;
+        }
+
+        .instructions ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .simulator-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+
+        .simulator-placeholder {
+            background: #e9ecef;
+            padding: 60px 20px;
+            text-align: center;
+            border-radius: 4px;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        .questionnaire {
+            margin-top: 30px;
+        }
+
+        .question {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .question label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .question input[type="text"],
+        .question textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .question textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .question input[type="radio"] {
+            margin-right: 8px;
+        }
+
+        .radio-option {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .radio-option:hover {
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .button-container {
+            margin-top: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-primary:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #ecf0f1;
+            border-radius: 3px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3498db;
+            transition: width 0.3s ease;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .confirmation {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .confirmation h1 {
+            color: #27ae60;
+            margin-bottom: 20px;
+        }
+
+        .confirmation p {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .checkmark {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            border-radius: 50%;
+            background: #27ae60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checkmark::after {
+            content: "✓";
+            color: white;
+            font-size: 50px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- Page 1: Study Instructions -->
+        <div class="page active" id="page-instructions">
+            <h1>Study Instructions</h1>
+            <div class="instructions">
+                <p>Welcome to our research study. Thank you for participating!</p>
+                
+                <h2>Overview</h2>
+                <p>This study consists of several parts:</p>
+                <ul>
+                    <li>Two interactive simulation tasks</li>
+                    <li>Three questionnaires about your experience</li>
+                    <li>The entire study should take approximately 15-20 minutes</li>
+                </ul>
+
+                <h2>What You'll Do</h2>
+                <p>You will:</p>
+                <ul>
+                    <li>Complete a simulation task using Python/Pygame</li>
+                    <li>Answer questions about your experience</li>
+                    <li>Repeat the process with a second simulation</li>
+                    <li>Complete a final questionnaire</li>
+                </ul>
+
+                <h2>Important Notes</h2>
+                <ul>
+                    <li>Please complete the study in one sitting</li>
+                    <li>There are no right or wrong answers</li>
+                    <li>Your responses will be kept confidential</li>
+                    <li>You can take breaks between sections if needed</li>
+                </ul>
+
+                <p><strong>By clicking "Begin Study," you consent to participate in this research.</strong></p>
+            </div>
+            <div class="button-container">
+                <div></div>
+                <button class="btn-primary" onclick="nextPage()">Begin Study</button>
+            </div>
+        </div>
+
+        <!-- Page 2: First Simulator -->
+        <div class="page" id="page-simulator1">
+            <h1>Simulation Task 1</h1>
+            <p>Please complete the following simulation task. Instructions will be provided within the simulator.</p>
+            
+            <div class="simulator-container">
+                <div class="simulator-placeholder">
+                    [Pygame Simulator 1 Will Load Here]
+                    <br><br>
+                    <small>Replace this section with your Pygame/Python simulation</small>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button class="btn-secondary" onclick="previousPage()">Back</button>
+                <button class="btn-primary" onclick="nextPage()">Continue to Questionnaire</button>
+            </div>
+        </div>
+
+        <!-- Page 3: First Questionnaire -->
+        <div class="page" id="page-questionnaire1">
+            <h1>Questionnaire 1</h1>
+            <p>Please answer the following questions about your experience with the first simulation.</p>
+            
+            <form class="questionnaire" id="form-q1">
+                <div class="question">
+                    <label>1. How difficult did you find the simulation task?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_difficulty" value="very_easy" required>
+                        Very Easy
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_difficulty" value="easy">
+                        Easy
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_difficulty" value="neutral">
+                        Neutral
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_difficulty" value="difficult">
+                        Difficult
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_difficulty" value="very_difficult">
+                        Very Difficult
+                    </label>
+                </div>
+
+                <div class="question">
+                    <label>2. Please describe your strategy or approach to the task:</label>
+                    <textarea name="q1_strategy" required></textarea>
+                </div>
+
+                <div class="question">
+                    <label>3. On a scale of 1-10, how confident are you in your performance?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="1" required> 1 (Not confident)
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="2"> 2
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="3"> 3
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="4"> 4
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="5"> 5
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="6"> 6
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="7"> 7
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="8"> 8
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="9"> 9
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q1_confidence" value="10"> 10 (Very confident)
+                    </label>
+                </div>
+            </form>
+
+            <div class="error-message" id="error-q1"></div>
+
+            <div class="button-container">
+                <button class="btn-secondary" onclick="previousPage()">Back</button>
+                <button class="btn-primary" onclick="nextPage()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Page 4: Second Simulator -->
+        <div class="page" id="page-simulator2">
+            <h1>Simulation Task 2</h1>
+            <p>Please complete this second simulation task. Instructions will be provided within the simulator.</p>
+            
+            <div class="simulator-container">
+                <div class="simulator-placeholder">
+                    [Pygame Simulator 2 Will Load Here]
+                    <br><br>
+                    <small>Replace this section with your Pygame/Python simulation</small>
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button class="btn-secondary" onclick="previousPage()">Back</button>
+                <button class="btn-primary" onclick="nextPage()">Continue to Questionnaire</button>
+            </div>
+        </div>
+
+        <!-- Page 5: Second Questionnaire -->
+        <div class="page" id="page-questionnaire2">
+            <h1>Questionnaire 2</h1>
+            <p>Please answer the following questions about your experience with the second simulation.</p>
+            
+            <form class="questionnaire" id="form-q2">
+                <div class="question">
+                    <label>1. How difficult did you find this simulation task?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_difficulty" value="very_easy" required>
+                        Very Easy
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_difficulty" value="easy">
+                        Easy
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_difficulty" value="neutral">
+                        Neutral
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_difficulty" value="difficult">
+                        Difficult
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_difficulty" value="very_difficult">
+                        Very Difficult
+                    </label>
+                </div>
+
+                <div class="question">
+                    <label>2. Please describe your strategy or approach to this task:</label>
+                    <textarea name="q2_strategy" required></textarea>
+                </div>
+
+                <div class="question">
+                    <label>3. On a scale of 1-10, how confident are you in your performance?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="1" required> 1 (Not confident)
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="2"> 2
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="3"> 3
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="4"> 4
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="5"> 5
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="6"> 6
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="7"> 7
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="8"> 8
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="9"> 9
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="q2_confidence" value="10"> 10 (Very confident)
+                    </label>
+                </div>
+            </form>
+
+            <div class="error-message" id="error-q2"></div>
+
+            <div class="button-container">
+                <button class="btn-secondary" onclick="previousPage()">Back</button>
+                <button class="btn-primary" onclick="nextPage()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Page 6: Final Questionnaire -->
+        <div class="page" id="page-questionnaire-final">
+            <h1>Final Questionnaire</h1>
+            <p>Please answer these final questions about your overall experience.</p>
+            
+            <form class="questionnaire" id="form-qf">
+                <div class="question">
+                    <label>1. How would you compare the two simulation tasks?</label>
+                    <textarea name="qf_comparison" required></textarea>
+                </div>
+
+                <div class="question">
+                    <label>2. What age range do you fall into?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_age" value="18-24" required>
+                        18-24
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_age" value="25-34">
+                        25-34
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_age" value="35-44">
+                        35-44
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_age" value="45-54">
+                        45-54
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_age" value="55+">
+                        55+
+                    </label>
+                </div>
+
+                <div class="question">
+                    <label>3. Do you have any prior experience with similar simulation tasks?</label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_experience" value="none" required>
+                        No experience
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_experience" value="some">
+                        Some experience
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_experience" value="moderate">
+                        Moderate experience
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="qf_experience" value="extensive">
+                        Extensive experience
+                    </label>
+                </div>
+
+                <div class="question">
+                    <label>4. Any additional comments or feedback?</label>
+                    <textarea name="qf_comments"></textarea>
+                </div>
+            </form>
+
+            <div class="error-message" id="error-qf"></div>
+
+            <div class="button-container">
+                <button class="btn-secondary" onclick="previousPage()">Back</button>
+                <button class="btn-primary" onclick="submitStudy()">Submit Study</button>
+            </div>
+        </div>
+
+        <!-- Page 7: Confirmation -->
+        <div class="page" id="page-confirmation">
+            <div class="confirmation">
+                <div class="checkmark"></div>
+                <h1>Thank You!</h1>
+                <p>Your responses have been submitted successfully.</p>
+                <p>We appreciate your participation in this study.</p>
+                <p>You may now close this window.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Navigation state
+        let currentPage = 0;
+        const pages = [
+            'page-instructions',
+            'page-simulator1',
+            'page-questionnaire1',
+            'page-simulator2',
+            'page-questionnaire2',
+            'page-questionnaire-final',
+            'page-confirmation'
+        ];
+
+        // Study data storage
+        const studyData = {
+            startTime: new Date().toISOString(),
+            questionnaire1: {},
+            questionnaire2: {},
+            questionnaireFinal: {},
+            endTime: null
+        };
+
+        // Initialize
+        updateProgress();
+
+        function showPage(pageIndex) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            // Show current page
+            document.getElementById(pages[pageIndex]).classList.add('active');
+            currentPage = pageIndex;
+            updateProgress();
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        function updateProgress() {
+            const progress = (currentPage / (pages.length - 1)) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        function validateForm(formId) {
+            const form = document.getElementById(formId);
+            if (!form) return true;
+
+            // Check if form is valid
+            if (!form.checkValidity()) {
+                // Show error message
+                const errorElement = document.getElementById('error-' + formId.replace('form-', ''));
+                if (errorElement) {
+                    errorElement.textContent = 'Please answer all required questions before continuing.';
+                }
+                return false;
+            }
+
+            // Clear error message
+            const errorElement = document.getElementById('error-' + formId.replace('form-', ''));
+            if (errorElement) {
+                errorElement.textContent = '';
+            }
+
+            return true;
+        }
+
+        function saveFormData(formId, dataKey) {
+            const form = document.getElementById(formId);
+            if (!form) return;
+
+            const formData = new FormData(form);
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            studyData[dataKey] = data;
+            console.log('Saved data:', dataKey, data);
+        }
+
+        function nextPage() {
+            // Validate questionnaire forms before proceeding
+            if (currentPage === 2) { // Questionnaire 1
+                if (!validateForm('form-q1')) return;
+                saveFormData('form-q1', 'questionnaire1');
+            } else if (currentPage === 4) { // Questionnaire 2
+                if (!validateForm('form-q2')) return;
+                saveFormData('form-q2', 'questionnaire2');
+            }
+
+            if (currentPage < pages.length - 1) {
+                showPage(currentPage + 1);
+            }
+        }
+
+        function previousPage() {
+            if (currentPage > 0) {
+                showPage(currentPage - 1);
+            }
+        }
+
+        function submitStudy() {
+            // Validate final questionnaire
+            if (!validateForm('form-qf')) return;
+            
+            saveFormData('form-qf', 'questionnaireFinal');
+            studyData.endTime = new Date().toISOString();
+
+            // Here you would typically send the data to your server
+            console.log('Study completed! Data:', studyData);
+            
+            // For now, save to localStorage as backup
+            localStorage.setItem('studyData', JSON.stringify(studyData));
+
+            // TODO: Send data to your server
+            // Example:
+            // fetch('/api/submit-study', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(studyData)
+            // });
+
+            // Show confirmation page
+            showPage(currentPage + 1);
+        }
+
+        // Prevent accidental page refresh
+        window.addEventListener('beforeunload', function (e) {
+            if (currentPage > 0 && currentPage < pages.length - 1) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
